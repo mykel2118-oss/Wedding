@@ -95,7 +95,7 @@ export async function POST(req: Request) {
       if (!playable) return fail("Could not add that GIF.");
       const buf = await fs.readFile(playable.file);
       const id = crypto.randomUUID();
-      const remoteUrl = await uploadBlob(buf, `${id}.webp`);
+      const remoteUrl = await uploadBlob(buf, `${id}.mp4`);
       await confirmRemote(remoteUrl, buf.length, buf.subarray(0, 12));
       const stillPath = await stillFrame(dest);
       let poster: string | null = null;
@@ -110,9 +110,9 @@ export async function POST(req: Request) {
       await fs.rm(playable.file, { force: true });
       const item = await insertMedia({
         id,
-        kind: "photo",
-        filename: `${id}.webp`,
-        mime: "image/webp",
+        kind: "video",
+        filename: `${id}.mp4`,
+        mime: "video/mp4",
         caption,
         width: playable.width || null,
         height: playable.height || null,

@@ -193,7 +193,7 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
       fail("Could not add that GIF.", "banner");
       return;
     }
-    if (!data.item || data.item.kind !== "photo") {
+    if (!data.item || data.item.kind !== "video") {
       setBusy(false);
       fail("Could not add that GIF.", "banner");
       return;
@@ -318,7 +318,7 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
     <>
     <section className="desk-section" id="banner-photo">
       <h2>The first photograph</h2>
-      <p>This is the wide photograph at the top of the page. Remove a replacement to bring the original photograph back. A video loops there, with no sound. A GIF plays there too. Both keep the file you chose.</p>
+      <p>This is the wide photograph at the top of the page. Remove a replacement to bring the original photograph back. A video loops there, with no sound. A GIF plays there too.</p>
       {place === "banner" && message ? <p className="form-note">{message}</p> : null}
       {place === "banner" && error ? (
         <p className="form-error" role="alert">

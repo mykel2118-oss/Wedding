@@ -66,8 +66,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const bannerMedia = home.banner ? byId.get(home.banner) ?? null : null;
   const hero: MediaItem = bannerMedia ?? HOME_FIRST;
   const catalogPhotos = items.filter((item) => item.kind === "photo" && item.id !== HOME_FIRST.id && item.id !== hero.id);
-  const movingBanner = hero.kind === "video" || hero.mime === "image/gif" || hero.mime === "image/webp";
-  const photos = hero.kind === "photo" && !movingBanner ? [hero, ...catalogPhotos] : catalogPhotos;
+  const photos = hero.kind === "photo" ? [hero, ...catalogPhotos] : catalogPhotos;
 
   return (
     <main>
@@ -98,14 +97,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <p className="lede">A private book of dating, the long middle, and the evening that became an engagement.</p>
         </div>
         <figure className="hero-photo">
-          {movingBanner ? (
+          {hero.kind === "video" ? (
             <BannerPicture
               src={hero.src}
               still={hero.poster ?? null}
               alt={hero.caption || "Ying and Kel"}
               width={hero.width}
               height={hero.height}
-              video={hero.kind === "video"}
             />
           ) : (
             <img

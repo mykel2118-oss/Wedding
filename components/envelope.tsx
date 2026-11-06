@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useState } from "react";
+import { playBannerFilm } from "@/components/banner-picture";
 import { startInvitationMusic } from "@/components/invitation-music";
 
 const OPEN_MS = 1800;
@@ -21,6 +22,7 @@ export function Envelope() {
 
   function open() {
     if (phase !== "closed") return;
+    playBannerFilm();
     startInvitationMusic();
     setPhase("opening");
     const reduced = document.documentElement.classList.contains("reduce-motion");

@@ -69,15 +69,35 @@ function plainH264(probe: Probe): boolean {
 }
 
 /**
- * Turn a GIF into a moving picture a phone can show in the banner.
- * The picture stays the same size. It plays in an image, so it does not sit on a black screen.
+ * Turn a GIF into a short silent film the banner can start at once.
+ * The picture stays the same size. The first moment is already at the front of the file.
  */
 export async function gifPlayable(input: string): Promise<{ file: string; width: number; height: number } | null> {
   const probe = await probeFilm(input);
-  const output = path.join(os.tmpdir(), `yk-gif-${path.basename(input)}-${Date.now()}.webp`);
+  const output = path.join(os.tmpdir(), `yk-gif-${path.basename(input)}-${Date.now()}.mp4`);
   const { code, log } = await run(
     ffmpegBin(),
-    ["-y", "-i", input, "-an", "-c:v", "libwebp", "-quality", "72", "-compression_level", "6", "-loop", "0", output],
+    [
+      "-y",
+      "-i",
+      input,
+      "-an",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "veryfast",
+      "-tune",
+      "animation",
+      "-crf",
+      "20",
+      "-pix_fmt",
+      "yuv420p",
+      "-g",
+      "30",
+      "-movflags",
+      "+faststart",
+      output,
+    ],
     50_000,
   );
   if (code !== 0 || !fs.existsSync(output) || fs.statSync(output).size < 1000) {
