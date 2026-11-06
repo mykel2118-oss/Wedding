@@ -8,8 +8,8 @@ import { NextResponse } from "next/server";
 import { readSession, sameOrigin } from "@/lib/auth";
 import { insertMedia } from "@/lib/db";
 import { masterFilm, shrinkFilmFile } from "@/lib/film-encode";
-import { FILM_CHUNK_BYTES, FILM_MAX_BYTES } from "@/lib/film-limits";
-import { videoFormat } from "@/lib/images";
+import { FILM_CHUNK_BYTES, FILM_MAX_BYTES, GIF_MAX_BYTES } from "@/lib/film-limits";
+import { gifFormat, videoFormat } from "@/lib/images";
 import { downloadRemote, readRemoteStart, safePart, uploadBlob } from "@/lib/live";
 
 export const runtime = "nodejs";
@@ -52,16 +52,19 @@ export async function POST(req: Request) {
   let size = 0;
   let urls: string[] = [];
   let keepOriginal = false;
+  let gif = false;
   try {
-    const body = (await req.json()) as { caption?: unknown; size?: unknown; urls?: unknown; keepOriginal?: unknown };
+    const body = (await req.json()) as { caption?: unknown; size?: unknown; urls?: unknown; keepOriginal?: unknown; gif?: unknown };
     caption = String(body.caption || "").trim().slice(0, 280);
     size = Number(body.size);
     urls = Array.isArray(body.urls) ? body.urls.map((url) => String(url)) : [];
     keepOriginal = body.keepOriginal === true;
+    gif = body.gif === true;
   } catch {
     return fail("Could not add that film.");
   }
-  if (!Number.isInteger(size) || size < 1 || size > FILM_MAX_BYTES) return fail("That film is too large to add.");
+  if (!Number.isInteger(size) || size < 1 || size > FILM_MAX_BYTES) return fail(gif ? "That GIF is too large to add." : "That film is too large to add.");
+  if (gif && size > GIF_MAX_BYTES) return fail("That GIF is too large to add.");
   const total = Math.ceil(size / FILM_CHUNK_BYTES);
   if (urls.length !== total || urls.some((url) => !safePart(url))) return fail("That film did not finish uploading.");
 
@@ -86,6 +89,24 @@ export async function POST(req: Request) {
     });
     const assembled = await fs.readFile(dest);
     if (assembled.length !== size) return fail("That film did not finish uploading.");
+    if (gif) {
+      const picture = gifFormat(assembled);
+      if (!picture) return fail("Choose a GIF.");
+      const id = crypto.randomUUID();
+      const remoteUrl = await uploadBlob(assembled, `${id}.gif`);
+      await confirmRemote(remoteUrl, assembled.length, assembled.subarray(0, 12));
+      const item = await insertMedia({
+        id,
+        kind: "photo",
+        filename: `${id}.gif`,
+        mime: "image/gif",
+        caption,
+        width: picture.width,
+        height: picture.height,
+        remoteUrl,
+      });
+      return NextResponse.json({ item });
+    }
     const video = videoFormat(assembled);
     if (!video) return fail("Choose an MP4, MOV, or WEBM film.");
     let buf = assembled;

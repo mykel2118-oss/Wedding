@@ -56,6 +56,17 @@ export function jpegSize(buf: Buffer): { width: number; height: number } | null 
   return null;
 }
 
+/** A GIF is kept byte for byte. Width and height are the picture size in the file. */
+export function gifFormat(buf: Buffer): { width: number; height: number } | null {
+  if (buf.length < 10) return null;
+  const sig = buf.subarray(0, 6).toString("ascii");
+  if (sig !== "GIF87a" && sig !== "GIF89a") return null;
+  const width = buf.readUInt16LE(6);
+  const height = buf.readUInt16LE(8);
+  if (!width || !height) return null;
+  return { width, height };
+}
+
 export function sniffPhoto(buf: Buffer): { ext: string; mime: string; width: number | null; height: number | null } | null {
   if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
     const size = jpegSize(buf);

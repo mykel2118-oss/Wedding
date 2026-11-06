@@ -141,7 +141,7 @@ function liveToItem(row: LiveMedia): MediaItem | null {
     width: row.width,
     height: row.height,
     mime: row.mime,
-    src: row.kind === "video" && remoteUrl ? remoteUrl : `/media/${row.id}${row.kind === "photo" ? `?v=${row.width || 0}x${row.height || 0}` : ""}`,
+    src: remoteUrl && (row.kind === "video" || row.mime === "image/gif") ? remoteUrl : `/media/${row.id}${row.kind === "photo" ? `?v=${row.width || 0}x${row.height || 0}` : ""}`,
   };
 }
 

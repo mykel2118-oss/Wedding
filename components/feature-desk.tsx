@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FILM_CHUNK_BYTES, FILM_MAX_BYTES } from "@/lib/film-limits";
+import { FILM_CHUNK_BYTES, FILM_MAX_BYTES, GIF_MAX_BYTES } from "@/lib/film-limits";
 import type { HomeDetails, MediaItem } from "@/lib/types";
 
 const SLOTS = [
@@ -44,7 +44,16 @@ function postForm(
   });
 }
 
-async function uploadVideo(file: File, caption: string, onProgress: (percent: number) => void, keepOriginal = false) {
+function isGif(file: File) {
+  return file.type === "image/gif" || /\.gif$/i.test(file.name);
+}
+
+async function uploadPieces(
+  file: File,
+  caption: string,
+  onProgress: (percent: number) => void,
+  finish: { keepOriginal?: boolean; gif?: boolean },
+) {
   const uploadId = crypto.randomUUID();
   const total = Math.ceil(file.size / FILM_CHUNK_BYTES);
   const urls: string[] = [];
@@ -70,7 +79,7 @@ async function uploadVideo(file: File, caption: string, onProgress: (percent: nu
     }
     if (result.status < 200 || result.status >= 300) return result;
     const saved = JSON.parse(result.text) as { url?: string };
-    if (!saved.url) return { status: 400, text: JSON.stringify({ error: "Could not add that video." }) };
+    if (!saved.url) return { status: 400, text: JSON.stringify({ error: finish.gif ? "Could not add that GIF." : "Could not add that video." }) };
     urls.push(saved.url);
     sent += blob.size;
     onProgress(Math.min(99, Math.round((sent / file.size) * 100)));
@@ -79,7 +88,7 @@ async function uploadVideo(file: File, caption: string, onProgress: (percent: nu
   const res = await fetch("/api/film/finish", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ caption, size: file.size, urls, keepOriginal }),
+    body: JSON.stringify({ caption, size: file.size, urls, ...finish }),
   });
   return { status: res.status, text: await res.text() };
 }
@@ -95,7 +104,7 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
   const [error, setError] = useState("");
   const [confirm, setConfirm] = useState<Slot | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
-  const [progressSlot, setProgressSlot] = useState<Slot | null>(null);
+  const [progressSlot, setProgressSlot] = useState<Slot | "gif" | null>(null);
   const [keys, setKeys] = useState<Record<string, number>>({});
   const [place, setPlace] = useState<"banner" | "story">("banner");
 
@@ -141,7 +150,68 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
     return true;
   }
 
+  async function addGif(file: File) {
+    if (file.size > GIF_MAX_BYTES) {
+      fail("That GIF is too large to add.", "banner");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    setMessage("");
+    setProgressSlot("gif");
+    setProgress(0);
+    let status = 0;
+    let text = "";
+    try {
+      const result = await uploadPieces(file, "The first photograph", setProgress, { gif: true });
+      status = result.status;
+      text = result.text;
+    } catch {
+      setProgress(null);
+      setProgressSlot(null);
+      setBusy(false);
+      fail("Could not add that GIF.", "banner");
+      return;
+    }
+    setProgress(null);
+    setProgressSlot(null);
+    if (status === 401) {
+      setBusy(false);
+      window.location.href = "/private";
+      return;
+    }
+    if (status < 200 || status >= 300) {
+      setBusy(false);
+      fail(errorText(text, "Could not add that GIF."), "banner");
+      return;
+    }
+    let data: { item?: MediaItem };
+    try {
+      data = JSON.parse(text) as { item?: MediaItem };
+    } catch {
+      setBusy(false);
+      fail("Could not add that GIF.", "banner");
+      return;
+    }
+    if (!data.item || data.item.kind !== "photo" || data.item.mime !== "image/gif") {
+      setBusy(false);
+      fail("Could not add that GIF.", "banner");
+      return;
+    }
+    setKnown((current) => [...current, data.item as MediaItem]);
+    const saved = await savePatch({ banner: data.item.id }, "GIF saved on the banner.", "banner");
+    if (saved) bump("banner-photo");
+  }
+
   async function addPhoto(index: Slot, file: File) {
+    if (isGif(file)) {
+      if (index !== "banner") {
+        fail("A GIF goes on the first photograph.", "story");
+        return;
+      }
+      await addGif(file);
+      return;
+    }
     setBusy(true);
     setError("");
     setMessage("");
@@ -190,7 +260,12 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
     let status = 0;
     let text = "";
     try {
-      const result = await uploadVideo(file, index === "banner" ? "The first photograph" : SLOTS[index].detail, setProgress, index === "banner");
+      const result = await uploadPieces(
+        file,
+        index === "banner" ? "The first photograph" : SLOTS[index].detail,
+        setProgress,
+        { keepOriginal: index === "banner" },
+      );
       status = result.status;
       text = result.text;
     } catch {
@@ -243,7 +318,7 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
     <>
     <section className="desk-section" id="banner-photo">
       <h2>The first photograph</h2>
-      <p>This is the wide photograph at the top of the page. Remove a replacement to bring the original photograph back. A video loops there, with no sound, and it keeps the sharpness of the file you chose.</p>
+      <p>This is the wide photograph at the top of the page. Remove a replacement to bring the original photograph back. A video loops there, with no sound. A GIF plays there too. Both keep the file you chose.</p>
       {place === "banner" && message ? <p className="form-note">{message}</p> : null}
       {place === "banner" && error ? (
         <p className="form-error" role="alert">
@@ -287,11 +362,19 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
             }}
           >
             <label className="file-label">
-              Upload a photograph
-              <input key={keys["banner-photo"] ?? 0} name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.jpg,.jpeg,.png,.webp" disabled={busy} />
+              Upload a photograph or a GIF
+              <input key={keys["banner-photo"] ?? 0} name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/gif,.heic,.jpg,.jpeg,.png,.webp,.gif" disabled={busy} />
             </label>
+            {progress !== null && progressSlot === "gif" ? (
+              <p className="upload-progress" role="status" aria-live="polite">
+                {progress < 100 ? `Uploading ${progress}%` : "Uploading 100%. Saving…"}
+                <span className="upload-track" aria-hidden="true">
+                  <span style={{ width: `${progress}%` }} />
+                </span>
+              </p>
+            ) : null}
             <button className="button" type="submit" disabled={busy}>
-              Save photograph
+              {progress === null || progressSlot !== "gif" ? "Save photograph" : progress < 100 ? `Uploading ${progress}%` : "Saving…"}
             </button>
           </form>
           <form
