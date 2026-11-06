@@ -69,6 +69,47 @@ function plainH264(probe: Probe): boolean {
 }
 
 /**
+ * Turn a GIF into a video the banner can start immediately.
+ * The picture stays the same size. The file is packed so a phone can play
+ * the first moment before the rest has arrived.
+ */
+export async function gifPlayable(input: string): Promise<{ file: string; width: number; height: number } | null> {
+  const probe = await probeFilm(input);
+  const output = path.join(os.tmpdir(), `yk-gif-${path.basename(input)}-${Date.now()}.mp4`);
+  const { code, log } = await run(
+    ffmpegBin(),
+    [
+      "-y",
+      "-i",
+      input,
+      "-an",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "medium",
+      "-tune",
+      "animation",
+      "-crf",
+      "16",
+      "-pix_fmt",
+      "yuv420p",
+      "-vf",
+      "scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos",
+      "-movflags",
+      "+faststart",
+      output,
+    ],
+    50_000,
+  );
+  if (code !== 0 || !fs.existsSync(output) || fs.statSync(output).size < 1000) {
+    fs.rmSync(output, { force: true });
+    return null;
+  }
+  const size = readOutputSize(log, probe);
+  return { file: output, width: size.width || probe?.width || 0, height: size.height || probe?.height || 0 };
+}
+
+/**
  * Keep a banner film at the resolution of the file that was uploaded.
  * A browser-ready file is returned unchanged. A phone movie that already
  * uses a normal picture is repacked without changing the picture. Anything

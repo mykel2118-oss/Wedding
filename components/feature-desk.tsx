@@ -193,13 +193,13 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
       fail("Could not add that GIF.", "banner");
       return;
     }
-    if (!data.item || data.item.kind !== "photo" || data.item.mime !== "image/gif") {
+    if (!data.item || data.item.kind !== "video") {
       setBusy(false);
       fail("Could not add that GIF.", "banner");
       return;
     }
     setKnown((current) => [...current, data.item as MediaItem]);
-    const saved = await savePatch({ banner: data.item.id }, "GIF saved on the banner.", "banner");
+    const saved = await savePatch({ banner: data.item.id }, "GIF saved. It plays on the banner right away.", "banner");
     if (saved) bump("banner-photo");
   }
 
