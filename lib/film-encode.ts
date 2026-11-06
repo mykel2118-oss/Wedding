@@ -30,6 +30,108 @@ function run(cmd: string, args: string[], timeoutMs: number): Promise<{ code: nu
   });
 }
 
+type Probe = { codec: string; pix: string; width: number; height: number };
+
+function readProbeLine(line: string): Probe | null {
+  const codec = /Video:\s*([a-z0-9]+)/i.exec(line)?.[1]?.toLowerCase();
+  const size = /(\d{2,5})x(\d{2,5})/.exec(line);
+  const pix = /,\s*((?:yuv|yuva|nv12|p010)[a-z0-9]*)/i.exec(line)?.[1]?.toLowerCase() || "";
+  if (!codec || !size) return null;
+  return { codec, pix, width: Number(size[1]), height: Number(size[2]) };
+}
+
+function readProbe(log: string): Probe | null {
+  const line = log.split(/\r?\n/).find((row) => row.includes("Video:"));
+  return line ? readProbeLine(line) : null;
+}
+
+function readOutputSize(log: string, fallback: Probe | null): { width: number; height: number } {
+  const lines = log.split(/\r?\n/).filter((row) => row.includes("Video:"));
+  const last = lines.length ? readProbeLine(lines[lines.length - 1]) : null;
+  return { width: last?.width || fallback?.width || 0, height: last?.height || fallback?.height || 0 };
+}
+
+async function probeFilm(input: string): Promise<Probe | null> {
+  const { log } = await run(ffmpegBin(), ["-hide_banner", "-i", input], 20_000);
+  return readProbe(log);
+}
+
+function playsAsUploaded(ext: string, probe: Probe): boolean {
+  const plain = probe.pix === "yuv420p" || probe.pix === "yuvj420p";
+  if (!plain) return false;
+  if (ext === "webm") return probe.codec === "vp8" || probe.codec === "vp9";
+  if (ext === "mp4") return probe.codec === "h264";
+  return false;
+}
+
+function plainH264(probe: Probe): boolean {
+  return probe.codec === "h264" && (probe.pix === "yuv420p" || probe.pix === "yuvj420p");
+}
+
+/**
+ * Keep a banner film at the resolution of the file that was uploaded.
+ * A browser-ready file is returned unchanged. A phone movie that already
+ * uses a normal picture is repacked without changing the picture. Anything
+ * else is redrawn at that same size, sharp enough to match the original.
+ * Returns null when the file could not be prepared.
+ */
+export async function masterFilm(input: string, ext: string): Promise<{ file: string | null; width: number; height: number } | null> {
+  const probe = await probeFilm(input);
+  if (probe && playsAsUploaded(ext, probe)) return { file: null, width: probe.width, height: probe.height };
+
+  const output = path.join(os.tmpdir(), `yk-master-${path.basename(input)}-${Date.now()}.mp4`);
+  if (probe && plainH264(probe)) {
+    const copied = await run(
+      ffmpegBin(),
+      ["-y", "-i", input, "-map", "0:v:0", "-map", "0:a:0?", "-c", "copy", "-movflags", "+faststart", output],
+      20_000,
+    );
+    if (copied.code === 0 && fs.existsSync(output) && fs.statSync(output).size > 1000) {
+      return { file: output, width: probe.width, height: probe.height };
+    }
+    fs.rmSync(output, { force: true });
+  }
+
+  const drawn = await run(
+    ffmpegBin(),
+    [
+      "-y",
+      "-i",
+      input,
+      "-map",
+      "0:v:0",
+      "-map",
+      "0:a:0?",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "veryfast",
+      "-crf",
+      "18",
+      "-pix_fmt",
+      "yuv420p",
+      "-vf",
+      "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "160k",
+      "-ac",
+      "2",
+      "-movflags",
+      "+faststart",
+      output,
+    ],
+    45_000,
+  );
+  if (drawn.code !== 0 || !fs.existsSync(output) || fs.statSync(output).size < 1000) {
+    fs.rmSync(output, { force: true });
+    return null;
+  }
+  const size = readOutputSize(drawn.log, probe);
+  return { file: output, width: size.width, height: size.height };
+}
+
 /**
  * Redraw a large film at a web size: the long edge stays at most 640,
  * three can play at once on a phone, and the file starts playing before

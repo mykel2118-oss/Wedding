@@ -44,7 +44,7 @@ function postForm(
   });
 }
 
-async function uploadVideo(file: File, caption: string, onProgress: (percent: number) => void) {
+async function uploadVideo(file: File, caption: string, onProgress: (percent: number) => void, keepOriginal = false) {
   const uploadId = crypto.randomUUID();
   const total = Math.ceil(file.size / FILM_CHUNK_BYTES);
   const urls: string[] = [];
@@ -79,7 +79,7 @@ async function uploadVideo(file: File, caption: string, onProgress: (percent: nu
   const res = await fetch("/api/film/finish", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ caption, size: file.size, urls }),
+    body: JSON.stringify({ caption, size: file.size, urls, keepOriginal }),
   });
   return { status: res.status, text: await res.text() };
 }
@@ -190,7 +190,7 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
     let status = 0;
     let text = "";
     try {
-      const result = await uploadVideo(file, index === "banner" ? "The first photograph" : SLOTS[index].detail, setProgress);
+      const result = await uploadVideo(file, index === "banner" ? "The first photograph" : SLOTS[index].detail, setProgress, index === "banner");
       status = result.status;
       text = result.text;
     } catch {
@@ -243,7 +243,7 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
     <>
     <section className="desk-section" id="banner-photo">
       <h2>The first photograph</h2>
-      <p>This is the wide photograph at the top of the page. Remove a replacement to bring the original photograph back. A video loops there, with no sound, so it can play on a phone.</p>
+      <p>This is the wide photograph at the top of the page. Remove a replacement to bring the original photograph back. A video loops there, with no sound, and it keeps the sharpness of the file you chose.</p>
       {place === "banner" && message ? <p className="form-note">{message}</p> : null}
       {place === "banner" && error ? (
         <p className="form-error" role="alert">

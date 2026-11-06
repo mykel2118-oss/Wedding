@@ -7,7 +7,7 @@ import { pipeline } from "node:stream/promises";
 import { NextResponse } from "next/server";
 import { readSession, sameOrigin } from "@/lib/auth";
 import { insertMedia } from "@/lib/db";
-import { shrinkFilmFile } from "@/lib/film-encode";
+import { masterFilm, shrinkFilmFile } from "@/lib/film-encode";
 import { FILM_CHUNK_BYTES, FILM_MAX_BYTES } from "@/lib/film-limits";
 import { videoFormat } from "@/lib/images";
 import { downloadRemote, readRemoteStart, safePart, uploadBlob } from "@/lib/live";
@@ -51,11 +51,13 @@ export async function POST(req: Request) {
   let caption = "";
   let size = 0;
   let urls: string[] = [];
+  let keepOriginal = false;
   try {
-    const body = (await req.json()) as { caption?: unknown; size?: unknown; urls?: unknown };
+    const body = (await req.json()) as { caption?: unknown; size?: unknown; urls?: unknown; keepOriginal?: unknown };
     caption = String(body.caption || "").trim().slice(0, 280);
     size = Number(body.size);
     urls = Array.isArray(body.urls) ? body.urls.map((url) => String(url)) : [];
+    keepOriginal = body.keepOriginal === true;
   } catch {
     return fail("Could not add that film.");
   }
@@ -86,10 +88,31 @@ export async function POST(req: Request) {
     if (assembled.length !== size) return fail("That film did not finish uploading.");
     const video = videoFormat(assembled);
     if (!video) return fail("Choose an MP4, MOV, or WEBM film.");
-    const shrunk = await shrinkFilmFile(dest);
-    const buf = shrunk ? await fs.readFile(shrunk.file) : assembled;
-    // The file host chooses the playback type from the name. A phone MOV plays as video/mp4.
-    const ext = shrunk ? "mp4" : video.ext === "webm" ? "webm" : "mp4";
+    let buf = assembled;
+    let width: number | null = null;
+    let height: number | null = null;
+    let ext = video.ext === "webm" ? "webm" : "mp4";
+    let prepared: string | null = null;
+    if (keepOriginal) {
+      const master = await masterFilm(dest, video.ext);
+      if (!master) return fail("Could not add that film.");
+      if (master.file) {
+        buf = await fs.readFile(master.file);
+        prepared = master.file;
+        ext = "mp4";
+      }
+      width = master.width || null;
+      height = master.height || null;
+    } else {
+      const shrunk = await shrinkFilmFile(dest);
+      if (shrunk) {
+        buf = await fs.readFile(shrunk.file);
+        prepared = shrunk.file;
+        ext = "mp4";
+        width = shrunk.width || null;
+        height = shrunk.height || null;
+      }
+    }
     const mime = ext === "webm" ? "video/webm" : "video/mp4";
     const id = crypto.randomUUID();
     const remoteUrl = await uploadBlob(buf, `${id}.${ext}`);
@@ -100,11 +123,11 @@ export async function POST(req: Request) {
       filename: `${id}.${ext}`,
       mime,
       caption,
-      width: shrunk?.width || null,
-      height: shrunk?.height || null,
+      width,
+      height,
       remoteUrl,
     });
-    if (shrunk) await fs.rm(shrunk.file, { force: true });
+    if (prepared) await fs.rm(prepared, { force: true });
     return NextResponse.json({ item });
   } catch (error) {
     console.error("film finish failed", error instanceof Error ? error.message : error);
