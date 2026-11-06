@@ -196,8 +196,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             <div>
               <h2>Photographs</h2>
               <p className="section-note">
-                {photos.length > 4
-                  ? "Four in each row. One row moves to the right, the next to the left. Open any of them."
+                {photos.length > 3
+                  ? "Three in each row. One row moves to the right, the next to the left. Open any of them."
                   : photos.length === 1
                     ? "One photograph. Open it."
                     : `${photos.length} photographs. Open any of them.`}

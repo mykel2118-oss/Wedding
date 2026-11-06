@@ -432,14 +432,14 @@ html.reduce-motion .intro-mark { animation: none; }
   display: grid;
   width: 100cqi;
   box-sizing: border-box;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--gallery-gap);
   padding-right: var(--gallery-gap);
   flex: 0 0 auto;
 }
 .gallery-set.is-short {
   width: max-content;
-  grid-template-columns: repeat(var(--shots, 1), calc((100cqi - 4 * var(--gallery-gap)) / 4));
+  grid-template-columns: repeat(var(--shots, 1), calc((100cqi - 3 * var(--gallery-gap)) / 3));
   padding-right: 0;
 }
 @keyframes gallery-ltr {
@@ -1170,15 +1170,11 @@ input:focus { outline: none; border-bottom-color: var(--espresso); }
   background: rgba(246, 240, 230, var(--panel, 0.68));
   padding: 0.35rem 0.45rem 0.45rem;
 }
-.gallery-section .shot { position: relative; }
 .gallery-section .shot figcaption {
-  position: absolute;
-  z-index: 1;
-  left: 0.4rem;
-  right: 0.4rem;
-  bottom: 0.4rem;
-  margin: 0;
-  border-radius: 8px;
+  position: static;
+  margin: 0.4rem 0 0;
+  padding: 0 0.1rem 0.15rem;
+  background: transparent;
 }
 
 .envelope {

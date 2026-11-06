@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { MediaItem } from "@/lib/types";
 
-const ROW_SIZE = 4;
+const ROW_SIZE = 3;
 
 function rowsOf(items: MediaItem[]) {
   const rows: MediaItem[][] = [];
