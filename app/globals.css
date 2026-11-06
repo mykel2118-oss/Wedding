@@ -313,10 +313,9 @@ html.reduce-motion .intro-mark { animation: none; }
   width: 100%;
   height: auto;
   max-width: 100%;
-  aspect-ratio: 2720 / 1536;
   object-fit: contain;
   object-position: center;
-  background: #140f0c;
+  background: transparent;
 }
 .hero-photo figcaption,
 .chapter-photo figcaption,
