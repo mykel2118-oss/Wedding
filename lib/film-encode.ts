@@ -69,36 +69,15 @@ function plainH264(probe: Probe): boolean {
 }
 
 /**
- * Turn a GIF into a video the banner can start immediately.
- * The picture stays the same size. The file is packed so a phone can play
- * the first moment before the rest has arrived.
+ * Turn a GIF into a moving picture a phone can show in the banner.
+ * The picture stays the same size. It plays in an image, so it does not sit on a black screen.
  */
 export async function gifPlayable(input: string): Promise<{ file: string; width: number; height: number } | null> {
   const probe = await probeFilm(input);
-  const output = path.join(os.tmpdir(), `yk-gif-${path.basename(input)}-${Date.now()}.mp4`);
+  const output = path.join(os.tmpdir(), `yk-gif-${path.basename(input)}-${Date.now()}.webp`);
   const { code, log } = await run(
     ffmpegBin(),
-    [
-      "-y",
-      "-i",
-      input,
-      "-an",
-      "-c:v",
-      "libx264",
-      "-preset",
-      "medium",
-      "-tune",
-      "animation",
-      "-crf",
-      "16",
-      "-pix_fmt",
-      "yuv420p",
-      "-vf",
-      "scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos",
-      "-movflags",
-      "+faststart",
-      output,
-    ],
+    ["-y", "-i", input, "-an", "-c:v", "libwebp", "-quality", "72", "-compression_level", "6", "-loop", "0", output],
     50_000,
   );
   if (code !== 0 || !fs.existsSync(output) || fs.statSync(output).size < 1000) {
@@ -107,6 +86,17 @@ export async function gifPlayable(input: string): Promise<{ file: string; width:
   }
   const size = readOutputSize(log, probe);
   return { file: output, width: size.width || probe?.width || 0, height: size.height || probe?.height || 0 };
+}
+
+/** The first moment of a GIF, shown while the moving picture is still arriving. */
+export async function stillFrame(input: string): Promise<string | null> {
+  const output = path.join(os.tmpdir(), `yk-still-${path.basename(input)}-${Date.now()}.jpg`);
+  const { code } = await run(ffmpegBin(), ["-y", "-i", input, "-frames:v", "1", "-q:v", "4", output], 20_000);
+  if (code !== 0 || !fs.existsSync(output) || fs.statSync(output).size < 1000) {
+    fs.rmSync(output, { force: true });
+    return null;
+  }
+  return output;
 }
 
 /**

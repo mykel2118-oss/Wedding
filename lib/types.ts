@@ -9,6 +9,8 @@ export type MediaItem = {
   height: number | null;
   mime: string;
   src: string;
+  /** A still of the first moment, shown until the moving picture is on screen. */
+  poster?: string | null;
 };
 
 export type HomeDetails = {

@@ -1,3 +1,4 @@
+import { BannerPicture } from "@/components/banner-picture";
 import { Countdown } from "@/components/countdown";
 import { Gallery } from "@/components/gallery";
 import { InvitationMusic } from "@/components/invitation-music";
@@ -64,8 +65,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const byId = new Map(items.map((item) => [item.id, item]));
   const bannerMedia = home.banner ? byId.get(home.banner) ?? null : null;
   const hero: MediaItem = bannerMedia ?? HOME_FIRST;
-  const catalogPhotos = items.filter((item) => item.kind === "photo" && item.id !== HOME_FIRST.id);
-  const photos = hero.kind === "photo" ? [hero, ...catalogPhotos.filter((item) => item.id !== hero.id)] : catalogPhotos;
+  const catalogPhotos = items.filter((item) => item.kind === "photo" && item.id !== HOME_FIRST.id && item.id !== hero.id);
+  const movingBanner = hero.kind === "video" || hero.mime === "image/gif" || hero.mime === "image/webp";
+  const photos = hero.kind === "photo" && !movingBanner ? [hero, ...catalogPhotos] : catalogPhotos;
 
   return (
     <main>
@@ -96,8 +98,15 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <p className="lede">A private book of dating, the long middle, and the evening that became an engagement.</p>
         </div>
         <figure className="hero-photo">
-          {hero.kind === "video" ? (
-            <video src={hero.src} autoPlay muted loop playsInline preload="auto" />
+          {movingBanner ? (
+            <BannerPicture
+              src={hero.src}
+              still={hero.poster ?? null}
+              alt={hero.caption || "Ying and Kel"}
+              width={hero.width}
+              height={hero.height}
+              video={hero.kind === "video"}
+            />
           ) : (
             <img
               src={hero.src}

@@ -7,7 +7,7 @@ import { pipeline } from "node:stream/promises";
 import { NextResponse } from "next/server";
 import { readSession, sameOrigin } from "@/lib/auth";
 import { insertMedia } from "@/lib/db";
-import { gifPlayable, masterFilm, shrinkFilmFile } from "@/lib/film-encode";
+import { gifPlayable, masterFilm, shrinkFilmFile, stillFrame } from "@/lib/film-encode";
 import { FILM_CHUNK_BYTES, FILM_MAX_BYTES, GIF_MAX_BYTES } from "@/lib/film-limits";
 import { gifFormat, videoFormat } from "@/lib/images";
 import { downloadRemote, readRemoteStart, safePart, uploadBlob } from "@/lib/live";
@@ -95,18 +95,29 @@ export async function POST(req: Request) {
       if (!playable) return fail("Could not add that GIF.");
       const buf = await fs.readFile(playable.file);
       const id = crypto.randomUUID();
-      const remoteUrl = await uploadBlob(buf, `${id}.mp4`);
+      const remoteUrl = await uploadBlob(buf, `${id}.webp`);
       await confirmRemote(remoteUrl, buf.length, buf.subarray(0, 12));
+      const stillPath = await stillFrame(dest);
+      let poster: string | null = null;
+      if (stillPath) {
+        try {
+          poster = await uploadBlob(await fs.readFile(stillPath), `${id}.jpg`);
+        } catch {
+          poster = null;
+        }
+        await fs.rm(stillPath, { force: true });
+      }
       await fs.rm(playable.file, { force: true });
       const item = await insertMedia({
         id,
-        kind: "video",
-        filename: `${id}.mp4`,
-        mime: "video/mp4",
+        kind: "photo",
+        filename: `${id}.webp`,
+        mime: "image/webp",
         caption,
         width: playable.width || null,
         height: playable.height || null,
         remoteUrl,
+        poster,
       });
       return NextResponse.json({ item });
     }

@@ -193,7 +193,7 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
       fail("Could not add that GIF.", "banner");
       return;
     }
-    if (!data.item || data.item.kind !== "video") {
+    if (!data.item || data.item.kind !== "photo") {
       setBusy(false);
       fail("Could not add that GIF.", "banner");
       return;

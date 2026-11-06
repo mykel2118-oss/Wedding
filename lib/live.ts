@@ -22,6 +22,8 @@ export type LiveMedia = {
   height: number | null;
   createdAt: string;
   remoteUrl: string | null;
+  /** A still shown at once, while the moving picture arrives. A site path or a file-host address. */
+  poster?: string | null;
 };
 
 export type LiveInvite = { id: string; name: string; createdAt: string; party?: string[] };
@@ -280,6 +282,13 @@ function httpsUrl(url: string, hosts: string[], suffixes: string[] = []): string
   } catch {
     return null;
   }
+}
+
+/** A still that can be shown at once. A picture on this site, or the durable file host. */
+export function posterSrc(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value.startsWith("/photos/") && !value.includes("..") && !value.includes("\\") && !value.includes("//")) return value;
+  return safeRemote(value);
 }
 
 /** A film guests can watch. Only the durable file host. */

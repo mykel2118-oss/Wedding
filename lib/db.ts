@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { mirrorDurable, restoreDurable } from "./durable";
-import { changeLive, mediaKeepingDeletions, readLive, safeRemote, type LiveMedia, type LiveState } from "./live";
+import { changeLive, mediaKeepingDeletions, posterSrc, readLive, safeRemote, type LiveMedia, type LiveState } from "./live";
 import { cleanLabel, cleanName, invitationLines } from "./names";
 import { DB_PATH, DATA_DIR, MEDIA_DIR, SEED_PATH } from "./paths";
 import { storyBanner, storyFeatures } from "./features";
@@ -141,7 +141,8 @@ function liveToItem(row: LiveMedia): MediaItem | null {
     width: row.width,
     height: row.height,
     mime: row.mime,
-    src: remoteUrl && (row.kind === "video" || row.mime === "image/gif") ? remoteUrl : `/media/${row.id}${row.kind === "photo" ? `?v=${row.width || 0}x${row.height || 0}` : ""}`,
+    poster: posterSrc(row.poster),
+    src: remoteUrl && (row.kind === "video" || row.mime === "image/gif" || row.mime === "image/webp") ? remoteUrl : `/media/${row.id}${row.kind === "photo" ? `?v=${row.width || 0}x${row.height || 0}` : ""}`,
   };
 }
 
@@ -215,6 +216,7 @@ export async function insertMedia(input: {
   width: number | null;
   height: number | null;
   remoteUrl?: string | null;
+  poster?: string | null;
 }): Promise<MediaItem> {
   const createdAt = new Date().toISOString();
   const remoteUrl = safeRemote(input.remoteUrl);
@@ -233,6 +235,7 @@ export async function insertMedia(input: {
       height: input.height,
       createdAt,
       remoteUrl,
+      poster: posterSrc(input.poster),
     });
   });
   if (!saved.media.some((item) => item.id === input.id)) throw new Error("Could not save the shared record");

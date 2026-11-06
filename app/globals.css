@@ -152,6 +152,7 @@ html:not(.envelope-open):not(.intro-done) .intro-mark { visibility: hidden; }
 html:not(.intro-done) main,
 html:not(.intro-done) .site-header,
 html:not(.intro-done) .scroll-ground { visibility: hidden; }
+html:not(.intro-done) .hero-photo { visibility: visible; }
 @keyframes mark-in { from { opacity: 0; } to { opacity: 1; } }
 html.reduce-motion .intro-mark { animation: none; }
 
@@ -290,12 +291,22 @@ html.reduce-motion .intro-mark { animation: none; }
   color: var(--espresso-soft);
 }
 .hero-photo {
+  position: relative;
   margin: 0;
   order: -1;
   border-radius: 28px 28px 0 0;
   overflow: hidden;
   line-height: 0;
 }
+.hero-photo .hero-motion {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+.hero-photo .hero-motion.is-on { opacity: 1; }
 .hero-photo img,
 .hero-photo video {
   display: block;
