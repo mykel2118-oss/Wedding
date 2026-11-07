@@ -4,7 +4,7 @@ import { useLayoutEffect, useState } from "react";
 import { playBannerFilm } from "@/components/banner-picture";
 import { startInvitationMusic } from "@/components/invitation-music";
 
-const OPEN_MS = 1800;
+const OPEN_MS = 2700;
 const HANDOFF_MS = 520;
 
 export function Envelope() {
@@ -27,7 +27,7 @@ export function Envelope() {
     setPhase("opening");
     const reduced = document.documentElement.classList.contains("reduce-motion");
     const phone = window.matchMedia("(max-width: 860px)").matches;
-    const openFor = reduced ? 220 : phone ? 1500 : OPEN_MS;
+    const openFor = reduced ? 240 : phone ? 2600 : OPEN_MS;
     const handoff = reduced ? 80 : HANDOFF_MS;
     window.setTimeout(() => {
       document.documentElement.classList.add("envelope-open");
@@ -55,6 +55,11 @@ export function Envelope() {
         </svg>
         <span className="envelope-photo-lining" aria-hidden="true">
           <img src="/envelope/pocket.jpg?v=5" alt="" />
+        </span>
+        <span className="envelope-photo-paper-window" aria-hidden="true">
+          <span className="envelope-photo-paper">
+            <span>You are invited</span>
+          </span>
         </span>
         <span className="envelope-photo-sheet envelope-photo-pocket" aria-hidden="true">
           <img src="/envelope/pocket.jpg?v=5" alt="" />

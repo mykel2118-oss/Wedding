@@ -163,7 +163,7 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
     let status = 0;
     let text = "";
     try {
-      const result = await uploadPieces(file, "The first photograph", setProgress, { gif: true });
+      const result = await uploadPieces(file, "Where forever begins", setProgress, { gif: true });
       status = result.status;
       text = result.text;
     } catch {
@@ -217,7 +217,7 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
     setMessage("");
     const body = new FormData();
     body.set("file", file);
-    body.set("caption", index === "banner" ? "The first photograph" : SLOTS[index].detail);
+    body.set("caption", index === "banner" ? "Where forever begins" : SLOTS[index].detail);
     body.set("expect", "photo");
     const res = await fetch("/api/media", { method: "POST", body });
     if (res.status === 401) {
@@ -262,7 +262,7 @@ export function FeatureDesk({ initial, media }: { initial: HomeDetails; media: M
     try {
       const result = await uploadPieces(
         file,
-        index === "banner" ? "The first photograph" : SLOTS[index].detail,
+        index === "banner" ? "Where forever begins" : SLOTS[index].detail,
         setProgress,
         { keepOriginal: index === "banner" },
       );

@@ -959,12 +959,44 @@ input:focus { outline: none; border-bottom-color: var(--espresso); }
   }
   .envelope-photo-lining { z-index: 0; }
   .envelope-photo-lining img { filter: brightness(0.86) saturate(0.82); }
+  .envelope-photo-paper-window {
+    position: absolute;
+    z-index: 2;
+    left: 14%;
+    right: 14%;
+    top: 6%;
+    height: 46%;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .envelope-photo-paper {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 72%;
+    display: grid;
+    place-items: center;
+    padding: 0 0.6rem;
+    background: linear-gradient(180deg, #fffaf3 0%, #f4e6d2 100%);
+    box-shadow: 0 16px 28px rgba(43, 34, 28, 0.2);
+  }
+  .envelope-photo-paper span {
+    font-family: var(--font-script), cursive;
+    font-size: clamp(1.45rem, 6.4vw, 2.2rem);
+    line-height: 1.15;
+    color: #6a4e34;
+    white-space: nowrap;
+  }
+  .envelope.is-opening .envelope-photo-paper {
+    animation: photo-paper 1.15s 0.48s cubic-bezier(.16, .84, .24, 1) forwards;
+  }
   .envelope-photo-pocket {
     z-index: 1;
     clip-path: url("#envelope-pocket-clip");
   }
   .envelope-photo-flap {
-    z-index: 2;
+    z-index: 3;
     transform-origin: center top;
     backface-visibility: hidden;
   }
@@ -995,7 +1027,7 @@ input:focus { outline: none; border-bottom-color: var(--espresso); }
   }
   .envelope-photo-hint {
     position: absolute;
-    z-index: 3;
+    z-index: 4;
     left: 50%;
     top: 70%;
     margin: 0;
@@ -1363,6 +1395,9 @@ input:focus { outline: none; border-bottom-color: var(--espresso); }
 @keyframes photo-flap {
   to { transform: rotateX(-78deg); }
 }
+@keyframes photo-paper {
+  to { transform: translateY(-88%); }
+}
 @keyframes card-rise {
   0% { transform: translateY(24px); }
   100% { transform: translateY(-210px); }
@@ -1372,6 +1407,7 @@ input:focus { outline: none; border-bottom-color: var(--espresso); }
 }
 html.reduce-motion .envelope.is-opening .envelope-flap,
 html.reduce-motion .envelope.is-opening .envelope-photo-flap,
+html.reduce-motion .envelope.is-opening .envelope-photo-paper,
 html.reduce-motion .envelope.is-opening .envelope-card,
 html.reduce-motion .envelope.is-revealing { animation-duration: 0.2s; animation-delay: 0s; }
 
