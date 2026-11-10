@@ -127,15 +127,22 @@ export function peopleFromInvites(invites: { id: string; party: string[]; names:
   return out;
 }
 
-function chairWords(chair: string) {
-  if (/^(chair|seat)\b/i.test(chair)) return chair;
-  if (/^\d+[a-z]?$/i.test(chair)) return `Chair ${chair}`;
-  return chair;
+function placeWord(kind: "Table" | "Chair", value: string) {
+  const text = value.trim().replace(/\s+/g, " ");
+  if (!text) return "";
+  const lead = kind === "Chair" ? "chair|seat" : "table";
+  const prefixed = text.match(new RegExp(`^(?:${lead})\\b[\\s:-]*(.*)$`, "i"));
+  if (prefixed) {
+    const rest = prefixed[1].trim();
+    return rest ? `${kind} ${rest}` : kind;
+  }
+  if (/^\d+[a-z]?$/i.test(text)) return `${kind} ${text}`;
+  return text;
 }
 
 export function seatPlace(piece: SeatPiece): string {
-  const table = piece.table.trim();
-  const chair = chairWords(piece.text.trim());
+  const table = placeWord("Table", piece.table);
+  const chair = placeWord("Chair", piece.text);
   if (table && chair) return `${table}, ${chair}`;
   return table || chair || "Your seat";
 }
