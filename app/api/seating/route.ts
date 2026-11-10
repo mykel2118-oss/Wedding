@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { rateLimit, readSession, sameOrigin } from "@/lib/auth";
 import { listInvites } from "@/lib/db";
 import { changeLive, readLive } from "@/lib/live";
-import { asSeating, peopleFromInvites } from "@/lib/seating";
+import { asSeating, peopleReadyToSeat } from "@/lib/seating";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const people = peopleFromInvites(await listInvites());
+    const people = peopleReadyToSeat(await listInvites(), (await readLive()).seating);
     const seating = asSeating(body, people);
     await changeLive((state) => {
       state.seating = seating;

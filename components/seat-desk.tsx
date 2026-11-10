@@ -283,8 +283,9 @@ export function SeatDesk({ initial, people }: { initial: SeatingPlan; people: Se
         </aside>
       </div>
       <h3 className="seat-assign-title">Assign a seat</h3>
+      <p className="form-note">A name appears here the first time that guest opens their invitation.</p>
       {people.length === 0 ? (
-        <p className="form-note">Make an invitation first. Each name on it can then be given a chair.</p>
+        <p className="form-note">A guest’s name appears here after they open their invitation. Then you can give each person a chair.</p>
       ) : (
         <ul className="seat-people">
           {people.map((person) => {

@@ -6,6 +6,7 @@ import { InvitationMusic } from "@/components/invitation-music";
 import { Reveal } from "@/components/reveal";
 import { RsvpCard } from "@/components/rsvp-card";
 import { SaveTheDate } from "@/components/save-the-date";
+import { SeatNameForm } from "@/components/seat-name-form";
 import { ensureInvite, getHome, getInvite, listMedia } from "@/lib/db";
 import { readGuest } from "@/lib/guest-token";
 import { readLive } from "@/lib/live";
@@ -106,7 +107,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <RsvpCard
             token={parsed ? token : null}
             name={parsed?.name ?? null}
-            initialNames={guest?.names ?? (parsed?.party.length ? parsed.party : null)}
+            partyNames={parsed?.party.length ? parsed.party : null}
+            savedNames={guest?.names ?? null}
           />
           <SaveTheDate />
           <section className="seat-card">
@@ -120,11 +122,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                   </li>
                 ))}
               </ul>
-            ) : parsed ? (
-              <p className="seat-card-note">Your seat will appear here once it is chosen.</p>
             ) : (
-              <p className="seat-card-note">Open the link from your invitation to see your table and chair.</p>
+              <p className="seat-card-note">Open this on the day of the wedding. Your table and chair will be here then.</p>
             )}
+            <SeatNameForm />
             <Link className="button" href={parsed ? `/seats?guest=${encodeURIComponent(token)}` : "/seats"}>
               See the map
             </Link>

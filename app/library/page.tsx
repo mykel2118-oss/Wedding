@@ -12,7 +12,7 @@ import { listGuestPhotos } from "@/lib/guest-photos";
 import { signGuest } from "@/lib/guest-token";
 import { readLive } from "@/lib/live";
 import { MARK } from "@/lib/mark";
-import { emptySeating, peopleFromInvites } from "@/lib/seating";
+import { emptySeating, peopleReadyToSeat } from "@/lib/seating";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -40,7 +40,7 @@ export default async function LibraryPage() {
       <FeatureDesk initial={home} media={items} />
       <GuestDesk initial={guestPhotos} />
       <InviteDesk initial={invites} />
-      <SeatDesk initial={seating} people={peopleFromInvites(invites)} />
+      <SeatDesk initial={seating} people={peopleReadyToSeat(invites, seating)} />
       <HomeDesk initial={home} />
       <LibraryDesk initial={items} />
     </main>
