@@ -1,5 +1,5 @@
 import { getHome } from "@/lib/db";
-import { WEDDING_PLACE } from "@/lib/mark";
+import { WEDDING_PLACE, WEDDING_SPOKEN } from "@/lib/mark";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,13 +18,13 @@ export async function GET() {
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
-    "UID:ying-kel-2027-04-10@wedding",
+    "UID:ying-kel-2027-04-09@wedding",
     "DTSTAMP:20261105T000000Z",
-    "DTSTART;VALUE=DATE:20270410",
-    "DTEND;VALUE=DATE:20270411",
+    "DTSTART;VALUE=DATE:20270409",
+    "DTEND;VALUE=DATE:20270410",
     "SUMMARY:Ying & kel",
     `LOCATION:${icsText(location)}`,
-    "DESCRIPTION:The wedding of Ying & kel. April 10\\, 2027.",
+    `DESCRIPTION:The wedding of Ying & kel. ${icsText(WEDDING_SPOKEN)}.`,
     "END:VEVENT",
     "END:VCALENDAR",
     "",

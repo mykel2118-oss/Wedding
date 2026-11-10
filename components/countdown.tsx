@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { WEDDING_PLACE } from "@/lib/mark";
+import { WEDDING_PLACE, WEDDING_SPOKEN } from "@/lib/mark";
 import { countdownParts, type CountdownParts } from "@/lib/time";
 
 function label(value: number | null, singular: string, plural: string) {
@@ -34,9 +34,9 @@ export function Countdown() {
   const seconds = parts?.seconds ?? null;
   const spoken = parts
     ? parts.elapsed
-      ? `April 10, 2027 has arrived in ${WEDDING_PLACE}.`
-      : `${parts.days} days, ${parts.hours} hours, ${parts.minutes} minutes, and ${parts.seconds} seconds until April 10, 2027, Pacific time`
-    : "Counting down to April 10, 2027, Pacific time";
+      ? `${WEDDING_SPOKEN} has arrived in ${WEDDING_PLACE}.`
+      : `${parts.days} days, ${parts.hours} hours, ${parts.minutes} minutes, and ${parts.seconds} seconds until ${WEDDING_SPOKEN}, Pacific time`
+    : `Counting down to ${WEDDING_SPOKEN}, Pacific time`;
 
   return (
     <div className="countdown-block">
@@ -61,7 +61,7 @@ export function Countdown() {
       <p className="countdown-note">
         {parts?.elapsed
           ? "The day is here."
-          : "Pacific time, to the first minute of April 10."}
+          : "Pacific time, to the first minute of April 9."}
       </p>
     </div>
   );
