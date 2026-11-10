@@ -372,6 +372,7 @@ function invitesFrom(state: LiveState): InviteRecord[] {
       names,
       responded,
       headcount: responded ? names.length : 0,
+      openedAt: typeof invite.openedAt === "string" ? invite.openedAt : "",
     };
   });
 }
@@ -387,20 +388,34 @@ export async function createInvite(partyInput: string[]): Promise<InviteRecord> 
   });
   getDb().prepare("INSERT INTO invites (id, name, created_at) VALUES (?, ?, ?)").run(id, lines.label, createdAt);
   remember();
-  return { id, name: lines.label, party, names: [], responded: false, headcount: 0 };
+  return { id, name: lines.label, party, names: [], responded: false, headcount: 0, openedAt: "" };
 }
 
 export async function ensureInvite(id: string, name: string, partyInput?: string[]): Promise<void> {
   const clean = cleanLabel(name);
   const party = (partyInput ?? []).map((item) => cleanName(item)).filter((item): item is string => Boolean(item)).slice(0, 2);
   if (!clean || !INVITE_ID.test(id)) throw new Error("bad invite");
-  await editCatalog((state) => {
-    if (state.invites.some((invite) => invite.id === id)) return;
-    state.invites.push({ id, name: clean, party: party.length ? party : [clean], createdAt: new Date().toISOString() });
-  });
+  const now = new Date().toISOString();
+  let already = false;
+  try {
+    const state = await readLive();
+    already = Boolean(state.invites.find((invite) => invite.id === id)?.openedAt);
+  } catch {
+    already = false;
+  }
+  if (!already) {
+    await editCatalog((state) => {
+      const existing = state.invites.find((invite) => invite.id === id);
+      if (existing) {
+        if (!existing.openedAt) existing.openedAt = now;
+        return;
+      }
+      state.invites.push({ id, name: clean, party: party.length ? party : [clean], createdAt: now, openedAt: now });
+    });
+  }
   const db = getDb();
   const existing = db.prepare("SELECT id FROM invites WHERE id = ?").get(id);
-  if (!existing) db.prepare("INSERT INTO invites (id, name, created_at) VALUES (?, ?, ?)").run(id, clean, new Date().toISOString());
+  if (!existing) db.prepare("INSERT INTO invites (id, name, created_at) VALUES (?, ?, ?)").run(id, clean, now);
   remember();
 }
 
