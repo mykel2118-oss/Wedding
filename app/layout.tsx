@@ -5,6 +5,7 @@ import { Envelope } from "@/components/envelope";
 import { Header } from "@/components/header";
 import { Intro } from "@/components/intro";
 import { ScrollGround } from "@/components/scroll-ground";
+import { readSession } from "@/lib/auth";
 import { getHome } from "@/lib/db";
 import { MARK } from "@/lib/mark";
 import { DEFAULT_BACKGROUND_OPACITY, DEFAULT_PANEL_OPACITY } from "@/lib/live";
@@ -42,6 +43,7 @@ const boot = `try{var r=document.documentElement;r.classList.add("js");if(matchM
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   let backgroundOpacity = DEFAULT_BACKGROUND_OPACITY;
   let panelOpacity = DEFAULT_PANEL_OPACITY;
+  let owner = false;
   try {
     const home = await getHome();
     backgroundOpacity = home.backgroundOpacity;
@@ -49,6 +51,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   } catch {
     backgroundOpacity = DEFAULT_BACKGROUND_OPACITY;
     panelOpacity = DEFAULT_PANEL_OPACITY;
+  }
+  try {
+    owner = Boolean(await readSession());
+  } catch {
+    owner = false;
   }
   return (
     <html
@@ -66,7 +73,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <ScrollGround />
         <Envelope />
         <Intro />
-        <Header />
+        <Header owner={owner} />
         {children}
       </body>
     </html>
