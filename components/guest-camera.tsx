@@ -167,6 +167,9 @@ export function GuestCamera() {
         <p className="eyebrow">The wedding of Ying & kel</p>
         <h1>Add a photograph</h1>
         <p>Your name stays under the picture, as Taken by {name.trim() || "your name"}.</p>
+        <p className="camera-save-note">
+          Once you take a photograph, it is saved on the website right away. You will not be able to delete it.
+        </p>
         <form onSubmit={begin}>
           <label>
             <span>Your name</span>

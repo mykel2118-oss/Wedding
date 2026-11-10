@@ -985,6 +985,15 @@ input:focus { outline: none; border-bottom-color: var(--espresso); }
   letter-spacing: -0.03em;
 }
 .camera-gate p { max-width: 34rem; font-size: 1.2rem; line-height: 1.45; }
+.camera-save-note {
+  margin: 1rem 0 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(43, 34, 28, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 250, 243, 0.72);
+  font-family: var(--font-ui), sans-serif;
+  font-size: 1.05rem;
+}
 .camera-gate form { display: grid; gap: 0.9rem; margin-top: 1.1rem; max-width: 28rem; }
 .camera-stage {
   position: fixed;
