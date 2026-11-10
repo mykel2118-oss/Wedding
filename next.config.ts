@@ -27,6 +27,8 @@ const nextConfig: NextConfig = {
     "/api/invites/[id]": ["./data/**/*"],
     "/api/rsvp": ["./data/**/*"],
     "/guests": ["./data/**/*"],
+    "/seats": ["./data/**/*"],
+    "/api/seating": ["./data/**/*"],
   },
   experimental: {
     staleTimes: {
@@ -46,6 +48,7 @@ const nextConfig: NextConfig = {
       { source: "/private", headers: noStore },
       { source: "/guests", headers: noStore },
       { source: "/camera", headers: noStore },
+      { source: "/seats", headers: noStore },
       {
         source: "/api/:path*",
         headers: [
