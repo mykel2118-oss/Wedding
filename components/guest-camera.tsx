@@ -59,17 +59,42 @@ function drawCover(
   canvas.height = Math.max(1, Math.round(sourceHeight * scale));
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
-  ctx.filter = filter;
-  if (mirror) {
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
+  const paint = () => {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (mirror) {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  };
+  if (filter && filter !== "none") {
+    try {
+      ctx.filter = filter;
+      paint();
+    } catch {
+      ctx.filter = "none";
+      paint();
+    }
+  } else {
+    paint();
   }
-  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
   return canvas;
 }
 
-export function GuestCamera() {
-  const [name, setName] = useState("");
+function waitForFrame(video: HTMLVideoElement) {
+  const start = Date.now();
+  return new Promise<boolean>((resolve) => {
+    const tick = () => {
+      if (video.videoWidth > 0 && video.videoHeight > 0) resolve(true);
+      else if (Date.now() - start > 1500) resolve(false);
+      else requestAnimationFrame(tick);
+    };
+    tick();
+  });
+}
+
+export function GuestCamera({ initialName = "" }: { initialName?: string }) {
+  const [name, setName] = useState(initialName);
   const [live, setLive] = useState(false);
   const [facing, setFacing] = useState<Facing>("environment");
   const [error, setError] = useState("");
@@ -86,7 +111,12 @@ export function GuestCamera() {
     const root = document.documentElement;
     root.classList.add("intro-done", "envelope-open");
     root.classList.remove("envelope-lock");
-    const stored = sessionStorage.getItem(NAME_KEY)?.replace(/\s+/g, " ").trim().slice(0, 40) || "";
+    let stored = "";
+    try {
+      stored = sessionStorage.getItem(NAME_KEY)?.replace(/\s+/g, " ").trim().slice(0, 40) || "";
+    } catch {
+      stored = "";
+    }
     if (stored) setName(stored);
     return () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -126,8 +156,12 @@ export function GuestCamera() {
       return;
     }
     setName(clean);
-    sessionStorage.setItem(NAME_KEY, clean);
-    sessionStorage.setItem("yk-intro:home", "1");
+    try {
+      sessionStorage.setItem(NAME_KEY, clean);
+      sessionStorage.setItem("yk-intro:home", "1");
+    } catch {
+      /* a private browser can still take the photograph */
+    }
     void openFacing(facing).catch(() => {
       setError("The camera needs permission. Allow it, then try again.");
     });
@@ -146,10 +180,14 @@ export function GuestCamera() {
 
   async function shoot() {
     const video = videoRef.current;
-    if (!video || busy || video.videoWidth === 0) return;
+    if (!video || busy) return;
     setBusy(true);
     setError("");
     try {
+      if (!video.srcObject && streamRef.current) video.srcObject = streamRef.current;
+      if (video.paused || video.readyState < 2) await video.play();
+      const framed = await waitForFrame(video);
+      if (!framed) throw new Error("The camera is still starting. Tap the button again.");
       const canvas = drawCover(video, video.videoWidth, video.videoHeight, facing === "user", filter);
       const blob = canvas ? await shrinkCanvas(canvas) : null;
       if (!blob) throw new Error("Could not take that photograph.");
@@ -238,7 +276,7 @@ export function GuestCamera() {
       </div>
       <div className="camera-bar">
         <span aria-hidden="true" />
-        <button type="button" className="camera-shutter" onClick={() => void shoot()} disabled={busy || !ready} aria-label="Take a photograph" />
+        <button type="button" className="camera-shutter" onClick={() => void shoot()} disabled={busy} aria-label="Take a photograph" />
         <button
           type="button"
           className="camera-side"

@@ -42,7 +42,7 @@ export async function addGuestPhoto(input: {
   if (existing.guestPhotos.length >= GUEST_PHOTO_LIMIT) return null;
   const remoteUrl = await uploadBlob(input.buf, `${input.id}.jpg`);
   const createdAt = new Date().toISOString();
-  await changeLive((state) => {
+  const saved = await changeLive((state) => {
     if (state.guestPhotos.some((row) => row.id === input.id)) return;
     if (state.guestPhotos.length >= GUEST_PHOTO_LIMIT) return;
     const sortOrder = state.guestPhotos.reduce((max, row) => Math.max(max, row.sortOrder), 0) + 1;
@@ -56,8 +56,8 @@ export async function addGuestPhoto(input: {
       createdAt,
     });
   });
-  const saved = (await listGuestPhotos()).find((photo) => photo.id === input.id);
-  return saved ?? null;
+  const row = saved.guestPhotos.find((photo) => photo.id === input.id);
+  return row ? toPublic(row) : null;
 }
 
 export async function deleteGuestPhoto(id: string): Promise<boolean> {
