@@ -103,6 +103,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             </span>
             <span>{WEDDING_PLACE}</span>
           </p>
+          <RsvpCard
+            token={parsed ? token : null}
+            name={parsed?.name ?? null}
+            initialNames={guest?.names ?? (parsed?.party.length ? parsed.party : null)}
+          />
+          <SaveTheDate />
           <section className="seat-card">
             <h2>Where you will sit</h2>
             {seatLines.length ? (
@@ -123,12 +129,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               See the map
             </Link>
           </section>
-          <RsvpCard
-            token={parsed ? token : null}
-            name={parsed?.name ?? null}
-            initialNames={guest?.names ?? (parsed?.party.length ? parsed.party : null)}
-          />
-          <SaveTheDate />
           <p className="lede">A private book of dating, the long middle, and the evening that became an engagement.</p>
         </div>
         <figure className="hero-photo">
