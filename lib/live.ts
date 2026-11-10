@@ -39,12 +39,24 @@ export type LiveUpload = {
   updatedAt: string;
 };
 
+/** A photograph a guest took at the wedding. Kept out of the wedding gallery. */
+export type LiveGuestPhoto = {
+  id: string;
+  name: string;
+  remoteUrl: string;
+  width: number | null;
+  height: number | null;
+  sortOrder: number;
+  createdAt: string;
+};
+
 export type LiveState = {
   revision: number;
   media: LiveMedia[];
   invites: LiveInvite[];
   rsvps: LiveRsvp[];
   uploads: LiveUpload[];
+  guestPhotos: LiveGuestPhoto[];
   /** Photographs kel removed. The original set must not put these back. */
   removed: string[];
   home: HomeDetails;
@@ -113,6 +125,43 @@ function asHome(value: unknown): HomeDetails {
   };
 }
 
+export function guestName(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.replace(/[<>]/g, "").replace(/[\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, 40);
+}
+
+function asGuestPhoto(value: unknown): LiveGuestPhoto | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Partial<LiveGuestPhoto>;
+  if (typeof row.id !== "string" || !/^[A-Za-z0-9-]{8,80}$/.test(row.id)) return null;
+  const remoteUrl = safeRemote(typeof row.remoteUrl === "string" ? row.remoteUrl : null);
+  const name = guestName(row.name);
+  if (!remoteUrl || !name) return null;
+  return {
+    id: row.id,
+    name,
+    remoteUrl,
+    width: typeof row.width === "number" && Number.isFinite(row.width) ? Math.round(row.width) : null,
+    height: typeof row.height === "number" && Number.isFinite(row.height) ? Math.round(row.height) : null,
+    sortOrder: typeof row.sortOrder === "number" && Number.isFinite(row.sortOrder) ? Math.round(row.sortOrder) : 0,
+    createdAt: typeof row.createdAt === "string" ? row.createdAt.slice(0, 40) : "",
+  };
+}
+
+function asGuestPhotos(value: unknown): LiveGuestPhoto[] {
+  if (!Array.isArray(value)) return [];
+  const out: LiveGuestPhoto[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    const photo = asGuestPhoto(item);
+    if (!photo || seen.has(photo.id)) continue;
+    seen.add(photo.id);
+    out.push(photo);
+    if (out.length >= 500) break;
+  }
+  return out;
+}
+
 function asState(value: unknown): LiveState | null {
   if (!value || typeof value !== "object") return null;
   const row = value as Partial<LiveState>;
@@ -126,6 +175,7 @@ function asState(value: unknown): LiveState | null {
       const upload = asUpload(item);
       return upload ? [upload] : [];
     }) : [],
+    guestPhotos: asGuestPhotos(row.guestPhotos),
     removed: removedIds(row.removed),
     home: asHome(row.home),
   };
@@ -231,6 +281,7 @@ function sameRecord(a: LiveState, b: LiveState): boolean {
     JSON.stringify(a.invites) === JSON.stringify(b.invites) &&
     JSON.stringify(a.rsvps) === JSON.stringify(b.rsvps) &&
     JSON.stringify(a.uploads) === JSON.stringify(b.uploads) &&
+    JSON.stringify(a.guestPhotos) === JSON.stringify(b.guestPhotos) &&
     JSON.stringify(removedIds(a.removed)) === JSON.stringify(removedIds(b.removed)) &&
     JSON.stringify(a.home) === JSON.stringify(b.home)
   );

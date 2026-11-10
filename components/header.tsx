@@ -20,6 +20,7 @@ export function Header() {
       <nav className="nav" aria-label="Sections">
         <Link href="/#story">Story</Link>
         <Link href="/#gallery">Gallery</Link>
+        <Link href="/guests">Guest photos</Link>
         <Link href="/#venue">Ceremony & reception</Link>
         <Link href="/#rsvp">RSVP</Link>
       </nav>

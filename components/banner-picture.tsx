@@ -2,17 +2,23 @@
 
 import { useEffect, useRef, useState } from "react";
 
-/** Start the banner film during the same tap that opens the envelope. */
-export function playBannerFilm() {
-  const video = document.querySelector<HTMLVideoElement>(".hero-photo video");
-  if (!video) return;
+function armBanner(video: HTMLVideoElement) {
   video.muted = true;
   video.defaultMuted = true;
+  video.loop = true;
   video.playsInline = true;
   video.setAttribute("muted", "");
   video.setAttribute("playsinline", "");
+  video.setAttribute("autoplay", "");
   const attempt = video.play();
   if (attempt) attempt.catch(() => {});
+}
+
+/** Start the banner during the same tap that opens the envelope. */
+export function playBannerFilm() {
+  const video = document.querySelector<HTMLVideoElement>(".hero-photo video");
+  if (!video) return;
+  armBanner(video);
 }
 
 export function BannerPicture({
@@ -34,17 +40,50 @@ export function BannerPicture({
   useEffect(() => {
     const video = film.current;
     if (!video) return;
+    let stopped = false;
+    let lastKick = 0;
+    let pauseTimer = 0;
     const watch = () => {
-      if (video.currentTime > 0.05 && !video.paused) setMoving(true);
+      if (stopped) return;
+      if (!video.paused && video.currentTime > 0) setMoving(true);
     };
-    playBannerFilm();
+    const kick = () => {
+      if (stopped) return;
+      watch();
+      if (!video.paused && video.currentTime > 0) return;
+      const now = Date.now();
+      if (now - lastKick < 250) return;
+      lastKick = now;
+      armBanner(video);
+    };
+    const onPause = () => {
+      if (stopped || video.ended) return;
+      window.clearTimeout(pauseTimer);
+      pauseTimer = window.setTimeout(kick, 120);
+    };
+    kick();
     video.addEventListener("timeupdate", watch);
     video.addEventListener("playing", watch);
-    document.addEventListener("pointerdown", playBannerFilm, true);
+    video.addEventListener("loadeddata", kick);
+    video.addEventListener("canplay", kick);
+    video.addEventListener("pause", onPause);
+    document.addEventListener("pointerdown", kick, true);
+    document.addEventListener("visibilitychange", kick);
+    const observer = new MutationObserver(kick);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    const timer = window.setInterval(kick, 600);
     return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      window.clearTimeout(pauseTimer);
+      observer.disconnect();
       video.removeEventListener("timeupdate", watch);
       video.removeEventListener("playing", watch);
-      document.removeEventListener("pointerdown", playBannerFilm, true);
+      video.removeEventListener("loadeddata", kick);
+      video.removeEventListener("canplay", kick);
+      video.removeEventListener("pause", onPause);
+      document.removeEventListener("pointerdown", kick, true);
+      document.removeEventListener("visibilitychange", kick);
     };
   }, [src]);
 
