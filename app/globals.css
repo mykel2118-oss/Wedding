@@ -1147,26 +1147,21 @@ input:focus { outline: none; border-bottom-color: var(--espresso); }
     left: 0;
     right: 0;
     top: 0;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 1.25rem;
+    height: 78%;
     background: linear-gradient(180deg, #fffaf3 0%, #f3e4cf 100%);
-    box-shadow: 0 14px 24px rgba(43, 34, 28, 0.16);
-    transform: translateY(100%);
+    transform: translateY(108%);
   }
   .envelope-photo-paper span {
-    position: relative;
+    position: absolute;
+    top: 32%;
+    left: 12%;
+    right: 12%;
     font-family: var(--font-script), cursive;
-    font-size: clamp(2rem, 8.5vw, 3.1rem);
+    font-size: clamp(1.45rem, 6vw, 2.05rem);
     line-height: 1.05;
     text-align: center;
     color: #6a4e34;
     white-space: nowrap;
-  }
-  .envelope.is-opening .envelope-photo-paper-window {
-    animation: note-cover 0.01s 0.52s linear forwards;
   }
   .envelope.is-opening .envelope-photo-paper {
     animation: photo-paper 1.15s 0.52s cubic-bezier(.16, .84, .24, 1) forwards;
@@ -1461,23 +1456,23 @@ input:focus { outline: none; border-bottom-color: var(--espresso); }
 }
 .envelope-card {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 100%;
+  left: 7%;
+  right: 7%;
+  top: 18px;
+  height: 246px;
   display: grid;
-  align-content: center;
+  align-content: start;
   justify-items: center;
-  gap: 0.7rem;
-  padding: 0 1.2rem;
+  gap: 0.65rem;
+  padding: 2.15rem 1rem 0;
   background: linear-gradient(180deg, #fffaf3 0%, #f4e7d4 100%);
-  box-shadow: 0 12px 24px rgba(43, 34, 28, 0.12);
-  transform: translateY(100%);
+  box-shadow: 0 10px 18px rgba(43, 34, 28, 0.1);
+  transform: translateY(115%);
 }
 .envelope-card p {
   margin: 0;
   font-family: var(--font-script), cursive;
-  font-size: clamp(1.9rem, 5vw, 2.35rem);
+  font-size: clamp(1.85rem, 4.6vw, 2.3rem);
   line-height: 1.05;
   color: #6d5438;
   white-space: nowrap;
@@ -1566,7 +1561,6 @@ input:focus { outline: none; border-bottom-color: var(--espresso); }
   white-space: nowrap;
 }
 .envelope.is-opening .envelope-open-hint { opacity: 0; transition: opacity 0.25s ease; }
-.envelope.is-opening .envelope-slot { animation: note-cover 0.01s 0.48s linear forwards; }
 .seal svg { width: 62%; height: 62%; }
 .seal svg path { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
 .envelope.is-opening .envelope-flap { animation: flap-lift 1.15s cubic-bezier(.45, .05, .2, 1) forwards; }
@@ -1578,15 +1572,12 @@ input:focus { outline: none; border-bottom-color: var(--espresso); }
 @keyframes photo-flap {
   to { transform: rotateX(-78deg); }
 }
-@keyframes note-cover {
-  to { z-index: 6; }
-}
 @keyframes photo-paper {
-  from { transform: translateY(100%); }
+  from { transform: translateY(108%); }
   to { transform: translateY(0); }
 }
 @keyframes card-rise {
-  from { transform: translateY(100%); }
+  from { transform: translateY(115%); }
   to { transform: translateY(0); }
 }
 @keyframes envelope-handoff {
@@ -1595,8 +1586,6 @@ input:focus { outline: none; border-bottom-color: var(--espresso); }
 html.reduce-motion .envelope.is-opening .envelope-flap,
 html.reduce-motion .envelope.is-opening .envelope-photo-flap,
 html.reduce-motion .envelope.is-opening .envelope-photo-paper,
-html.reduce-motion .envelope.is-opening .envelope-photo-paper-window,
-html.reduce-motion .envelope.is-opening .envelope-slot,
 html.reduce-motion .envelope.is-opening .envelope-card,
 html.reduce-motion .envelope.is-revealing { animation-duration: 0.2s; animation-delay: 0s; }
 
