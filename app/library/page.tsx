@@ -10,7 +10,7 @@ import { readSession } from "@/lib/auth";
 import { getHome, listInvites, listMedia } from "@/lib/db";
 import { listGuestPhotos } from "@/lib/guest-photos";
 import { signGuest } from "@/lib/guest-token";
-import { readLive } from "@/lib/live";
+import { emptyHome, readLive } from "@/lib/live";
 import { MARK } from "@/lib/mark";
 import { emptySeating, peopleReadyToSeat } from "@/lib/seating";
 
@@ -25,10 +25,21 @@ export const metadata: Metadata = {
 export default async function LibraryPage() {
   const session = await readSession();
   if (!session) redirect("/private");
-  const items = await listMedia();
-  const home = await getHome();
-  const guestPhotos = await listGuestPhotos();
-  const invites = (await listInvites()).map((invite) => ({ ...invite, token: signGuest(invite.id, invite.name, invite.party) }));
+  let items: Awaited<ReturnType<typeof listMedia>> = [];
+  let home = emptyHome();
+  let guestPhotos: Awaited<ReturnType<typeof listGuestPhotos>> = [];
+  let invites: Array<Awaited<ReturnType<typeof listInvites>>[number] & { token: string }> = [];
+  try {
+    items = await listMedia();
+    home = await getHome();
+    guestPhotos = await listGuestPhotos();
+    invites = (await listInvites()).map((invite) => ({ ...invite, token: signGuest(invite.id, invite.name, invite.party) }));
+  } catch {
+    items = [];
+    home = emptyHome();
+    guestPhotos = [];
+    invites = [];
+  }
   let seating = emptySeating();
   try {
     seating = (await readLive()).seating;

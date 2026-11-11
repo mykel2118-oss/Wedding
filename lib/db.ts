@@ -131,6 +131,7 @@ export function getDb(): DatabaseSync {
 type StoredMedia = MediaItem & { filename: string; remoteUrl: string | null };
 
 function liveToItem(row: LiveMedia): MediaItem | null {
+  if (!row || typeof row.id !== "string" || typeof row.filename !== "string") return null;
   const remoteUrl = safeRemote(row.remoteUrl);
   if (!remoteUrl && !fs.existsSync(`${MEDIA_DIR}/${row.filename}`)) return null;
   return {
@@ -194,8 +195,9 @@ export async function saveHome(patch: Partial<HomeDetails>): Promise<HomeDetails
 export async function listMedia(): Promise<MediaItem[]> {
   const state = await shared();
   return state.media
+    .filter((row) => row && typeof row === "object")
     .slice()
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt))
+    .sort((a, b) => (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")))
     .map(liveToItem)
     .filter((item): item is MediaItem => item !== null);
 }

@@ -9,7 +9,7 @@ import { SaveTheDate } from "@/components/save-the-date";
 import { SeatNameForm } from "@/components/seat-name-form";
 import { ensureInvite, getHome, getInvite, listMedia } from "@/lib/db";
 import { readGuest } from "@/lib/guest-token";
-import { readLive } from "@/lib/live";
+import { emptyHome, readLive } from "@/lib/live";
 import { MARK, WEDDING_LABEL, WEDDING_PLACE, WEDDING_WEEKDAY } from "@/lib/mark";
 import { seatsFor } from "@/lib/seating";
 import type { MediaItem } from "@/lib/types";
@@ -62,10 +62,30 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const params = await searchParams;
   const token = typeof params.guest === "string" ? params.guest : "";
   const parsed = token ? readGuest(token) : null;
-  if (parsed) await ensureInvite(parsed.id, parsed.name, parsed.party);
-  const guest = parsed ? await getInvite(parsed.id) : null;
-  const items = await listMedia();
-  const home = await getHome();
+  if (parsed) {
+    try {
+      await ensureInvite(parsed.id, parsed.name, parsed.party);
+    } catch {
+      /* the invitation can still open */
+    }
+  }
+  let guest: Awaited<ReturnType<typeof getInvite>> = null;
+  if (parsed) {
+    try {
+      guest = await getInvite(parsed.id);
+    } catch {
+      guest = null;
+    }
+  }
+  let items: MediaItem[] = [];
+  let home = emptyHome();
+  try {
+    items = await listMedia();
+    home = await getHome();
+  } catch {
+    items = [];
+    home = emptyHome();
+  }
   let seatLines: { name: string; place: string; pieceId: string }[] = [];
   if (parsed) {
     try {

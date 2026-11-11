@@ -1,8 +1,11 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import https from "node:https";
+import os from "node:os";
+import path from "node:path";
 import { storyBanner, storyFeatures } from "./features";
-import { asSeating, type SeatingPlan } from "./seating";
+import { parseRecord } from "./record-text";
+import { asSeating, emptySeating, type SeatingPlan } from "./seating";
 import type { HomeDetails, MediaKind } from "./types";
 
 /** Shared record every live visit reads and writes. Not the temporary Vercel disk. */
@@ -226,34 +229,6 @@ function noteState(state: LiveState) {
   }
 }
 
-/** The storage host appends an HTML page after the record. Read only the JSON object. */
-function parseRecord(text: string): unknown {
-  const start = text.indexOf("{");
-  if (start < 0) throw new Error("Could not read the shared record");
-  let depth = 0;
-  let inString = false;
-  let escape = false;
-  for (let i = start; i < text.length; i++) {
-    const ch = text[i];
-    if (inString) {
-      if (escape) escape = false;
-      else if (ch === "\\") escape = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') {
-      inString = true;
-      continue;
-    }
-    if (ch === "{") depth += 1;
-    else if (ch === "}") {
-      depth -= 1;
-      if (depth === 0) return JSON.parse(text.slice(start, i + 1));
-    }
-  }
-  throw new Error("Could not read the shared record");
-}
-
 function requestText(url: string, method: string, body?: string): Promise<{ status: number; text: string }> {
   return new Promise((resolve, reject) => {
     const req = https.request(
@@ -283,21 +258,79 @@ function requestText(url: string, method: string, body?: string): Promise<{ stat
 
 /** One shared read serves a room of guests. A save always reads again. */
 const LIVE_MS = 3000;
+const SNAPSHOT_TMP = path.join(os.tmpdir(), "yk-live-snapshot.json");
+const SNAPSHOT_DATA = path.join(process.cwd(), "data", "live-snapshot.json");
 let cached: { at: number; revision: number; state: LiveState } | null = null;
 let flight: Promise<LiveState> | null = null;
+let lastGood: LiveState | null = null;
 
 function keep(state: LiveState) {
   if (cached && state.revision < cached.revision) return;
   cached = { at: Date.now(), revision: state.revision, state: structuredClone(state) };
 }
 
+function emptyCatalog(): LiveState {
+  return {
+    revision: 0,
+    media: [],
+    invites: [],
+    rsvps: [],
+    uploads: [],
+    guestPhotos: [],
+    removed: [],
+    home: emptyHome(),
+    seating: emptySeating(),
+  };
+}
+
+function snapshotFiles(): string[] {
+  return process.env.VERCEL === "1" ? [SNAPSHOT_TMP] : [SNAPSHOT_TMP, SNAPSHOT_DATA];
+}
+
+/** Remember a real record so a later bad reply does not take the site down. */
+function rememberGood(state: LiveState) {
+  if (!state.media.length && state.revision <= 0) return;
+  lastGood = structuredClone(state);
+  const body = JSON.stringify(state);
+  for (const file of snapshotFiles()) {
+    try {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      const tmp = `${file}.${process.pid}.tmp`;
+      fs.writeFileSync(tmp, body);
+      fs.renameSync(tmp, file);
+    } catch {
+      /* a snapshot is only a backup */
+    }
+  }
+}
+
+function readSnapshot(file: string): LiveState | null {
+  try {
+    const state = asState(parseRecord(fs.readFileSync(file, "utf8")));
+    if (!state || (!state.media.length && state.revision <= 0)) return null;
+    return state;
+  } catch {
+    return null;
+  }
+}
+
+function loadGood(): LiveState | null {
+  if (lastGood && (lastGood.media.length || lastGood.revision > 0)) return structuredClone(lastGood);
+  for (const file of [SNAPSHOT_TMP, SNAPSHOT_DATA]) {
+    const state = readSnapshot(file);
+    if (state) {
+      lastGood = state;
+      return structuredClone(state);
+    }
+  }
+  return null;
+}
+
 async function fetchLive(): Promise<LiveState> {
-  let last = "";
   let best: LiveState | null = null;
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
       const res = await requestText(`${BIN_URL}?t=${Date.now()}-${attempt}-${Math.random()}`, "GET");
-      last = res.text;
       if (res.status < 200 || res.status >= 300) continue;
       const state = asState(parseRecord(res.text));
       if (!state) continue;
@@ -306,15 +339,15 @@ async function fetchLive(): Promise<LiveState> {
         noteState(state);
         return state;
       }
-    } catch (error) {
-      last = error instanceof Error ? error.message : last;
+    } catch {
+      /* try the host again, then the last good copy */
     }
   }
-  if (best && highWater === 0) {
+  if (best && (highWater === 0 || best.revision >= highWater)) {
     noteState(best);
     return best;
   }
-  throw new Error(last || "Could not read the shared record");
+  throw new Error("Could not read the shared record");
 }
 
 export async function readLive(): Promise<LiveState> {
@@ -322,8 +355,19 @@ export async function readLive(): Promise<LiveState> {
   if (!flight) {
     flight = fetchLive()
       .then((state) => {
+        rememberGood(state);
         keep(state);
         return cached?.state ?? state;
+      })
+      .catch(() => {
+        const saved = loadGood() ?? (cached && (cached.state.media.length || cached.state.revision > 0) ? structuredClone(cached.state) : null);
+        if (saved) {
+          keep(saved);
+          return saved;
+        }
+        const blank = emptyCatalog();
+        keep(blank);
+        return blank;
       })
       .finally(() => {
         flight = null;
