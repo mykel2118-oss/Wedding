@@ -14,7 +14,12 @@ export const metadata: Metadata = {
 export default async function GuestsPage({ searchParams }: { searchParams: Promise<{ guest?: string }> }) {
   const params = await searchParams;
   const token = typeof params.guest === "string" ? params.guest : "";
-  const photos = await listGuestPhotos();
+  let photos: Awaited<ReturnType<typeof listGuestPhotos>> = [];
+  try {
+    photos = await listGuestPhotos();
+  } catch {
+    photos = [];
+  }
   const cameraHref = token ? `/camera?guest=${encodeURIComponent(token)}` : "/camera";
   return (
     <main>
