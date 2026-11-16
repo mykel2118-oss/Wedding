@@ -109,6 +109,68 @@ export function clampPiece(piece: SeatPiece): SeatPiece {
   return asSeating({ pieces: [piece], assignments: [] }).pieces[0] ?? piece;
 }
 
+export type SeatGroup = {
+  inviteId: string;
+  label: string;
+  names: string[];
+};
+
+function sameName(a: string, b: string) {
+  return a.trim().replace(/\s+/g, " ").toLowerCase() === b.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function lastName(name: string) {
+  const parts = name.trim().split(/\s+/);
+  return parts[parts.length - 1] || name.trim();
+}
+
+export function seatGroups(invites: { id: string; party: string[]; names: string[] }[]): SeatGroup[] {
+  const groups: SeatGroup[] = [];
+  for (const invite of invites) {
+    const names: string[] = [];
+    for (const raw of [...invite.party, ...invite.names]) {
+      const name = raw.trim().replace(/\s+/g, " ");
+      if (!name || names.some((item) => sameName(item, name))) continue;
+      names.push(name);
+    }
+    if (!names.length) continue;
+    const lasts = names.map(lastName);
+    const shared = lasts.every((item) => sameName(item, lasts[0]));
+    groups.push({ inviteId: invite.id, label: shared ? `${lasts[0]} Family` : names.join(" and "), names });
+  }
+  return groups;
+}
+
+/** One full name, or the family name, finds that whole invitation. */
+export function groupsForName(groups: SeatGroup[], query: string): SeatGroup[] {
+  const wanted = query.trim().replace(/\s+/g, " ").toLowerCase().replace(/^the\s+/, "");
+  if (!wanted) return [];
+  return groups.filter((group) => {
+    if (group.label.toLowerCase() === wanted) return true;
+    if (group.names.some((name) => sameName(name, wanted))) return true;
+    const lasts = group.names.map(lastName);
+    const shared = lasts.length > 0 && lasts.every((item) => sameName(item, lasts[0]));
+    if (!shared) return false;
+    const last = lasts[0].toLowerCase();
+    return wanted === last || wanted === `${last} family`;
+  });
+}
+
+export function peopleReadyToSeat(
+  invites: { id: string; party: string[]; names: string[]; openedAt?: string; responded?: boolean }[],
+  plan: SeatingPlan,
+): SeatPerson[] {
+  const visible = invites.filter(
+    (invite) => Boolean(invite.openedAt) || invite.responded || plan.assignments.some((row) => row.inviteId === invite.id),
+  );
+  const people = peopleFromInvites(visible);
+  for (const row of plan.assignments) {
+    if (people.some((person) => person.inviteId === row.inviteId && sameName(person.name, row.name))) continue;
+    people.push({ inviteId: row.inviteId, name: row.name });
+  }
+  return people;
+}
+
 export function peopleFromInvites(invites: { id: string; party: string[]; names: string[] }[]): SeatPerson[] {
   const out: SeatPerson[] = [];
   const seen = new Set<string>();

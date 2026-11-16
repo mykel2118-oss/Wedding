@@ -36,4 +36,6 @@ export type InviteRecord = {
   names: string[];
   responded: boolean;
   headcount: number;
+  /** Set the first time this invitation is opened. */
+  openedAt: string;
 };

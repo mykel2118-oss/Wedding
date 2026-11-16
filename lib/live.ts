@@ -27,7 +27,7 @@ export type LiveMedia = {
   poster?: string | null;
 };
 
-export type LiveInvite = { id: string; name: string; createdAt: string; party?: string[] };
+export type LiveInvite = { id: string; name: string; createdAt: string; party?: string[]; openedAt?: string };
 export type LiveRsvp = { inviteId: string; names: string[]; updatedAt: string };
 
 /** Pieces of a film that is still being saved. Not shown on the site. */

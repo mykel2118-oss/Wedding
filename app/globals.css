@@ -221,7 +221,11 @@ html.reduce-motion .intro-mark { animation: none; }
   font-size: 1.15rem;
   line-height: 1.45;
 }
-.rsvp-done { margin: 0; }
+.rsvp-done { margin: 0 0 0.9rem; }
+.rsvp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem 1rem; }
+.seat-lookup { display: grid; gap: 0.55rem; margin: 0.2rem 0 0.95rem; max-width: 28rem; }
+.seat-lookup input { width: 100%; }
+.seat-lookup .seat-card-note { margin: 0; }
 .invite-name {
   margin: 0 0 0.85rem;
   font-family: var(--font-script), cursive;

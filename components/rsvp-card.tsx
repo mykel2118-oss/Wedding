@@ -9,26 +9,38 @@ function partyCount(text: string): number | null {
   return count;
 }
 
+function listNames(names: string[]) {
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+}
+
 export function RsvpCard({
   token,
   name,
-  initialNames,
+  partyNames,
+  savedNames,
 }: {
   token: string | null;
   name: string | null;
-  initialNames: string[] | null;
+  partyNames: string[] | null;
+  savedNames: string[] | null;
 }) {
-  const starting = Math.max(initialNames?.length ?? 1, 1);
+  const replied = Boolean(savedNames && savedNames.length);
+  const starting = Math.max((replied ? savedNames : partyNames)?.length ?? 1, 1);
   const [quantityText, setQuantityText] = useState(String(starting));
   const [people, setPeople] = useState<string[]>(() => {
-    const seed = (initialNames && initialNames.length ? initialNames : [name ?? ""]).slice();
+    const seed = ((replied ? savedNames : partyNames) || [name ?? ""]).slice();
     while (seed.length < starting) seed.push("");
     if (!seed[0] && name) seed[0] = name;
     return seed;
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState<{ names: string[]; headcount: number } | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [done, setDone] = useState<{ names: string[]; headcount: number } | null>(
+    replied && savedNames ? { names: savedNames, headcount: savedNames.length } : null,
+  );
   const quantity = partyCount(quantityText);
 
   function onQuantity(raw: string) {
@@ -71,6 +83,9 @@ export function RsvpCard({
         return;
       }
       setDone({ names: data.names, headcount: data.headcount });
+      setPeople(data.names);
+      setQuantityText(String(data.headcount));
+      setEditing(false);
     } catch {
       setError("Could not save that reply.");
     } finally {
@@ -82,10 +97,15 @@ export function RsvpCard({
     <section className="rsvp-card" id="rsvp" aria-labelledby="rsvp-title">
       <p className="eyebrow">RSVP</p>
       <h2 id="rsvp-title">Will you be there?</h2>
-      {done ? (
-        <p className="rsvp-done">
-          You&apos;re counted — {done.headcount} {done.headcount === 1 ? "person" : "people"}: {done.names.join(", ")}.
-        </p>
+      {done && !editing ? (
+        <div className="rsvp-saved">
+          <p className="rsvp-done">
+            You already replied. {done.headcount} {done.headcount === 1 ? "person" : "people"}: {listNames(done.names)}.
+          </p>
+          <button type="button" className="button" onClick={() => setEditing(true)}>
+            Edit reply
+          </button>
+        </div>
       ) : (
         <form onSubmit={submit}>
           {token && name ? (
@@ -127,9 +147,25 @@ export function RsvpCard({
                 </label>
               ))
                 : null}
-              <button className="button" type="submit" disabled={busy}>
-                {busy ? "Sending" : "Send reply"}
-              </button>
+              <div className="rsvp-actions">
+                <button className="button" type="submit" disabled={busy}>
+                  {busy ? "Saving" : done ? "Save changes" : "Send reply"}
+                </button>
+                {done ? (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => {
+                      setEditing(false);
+                      setError("");
+                      setPeople(done.names);
+                      setQuantityText(String(done.headcount));
+                    }}
+                  >
+                    Cancel
+                  </button>
+                ) : null}
+              </div>
             </>
           ) : (
             <>
