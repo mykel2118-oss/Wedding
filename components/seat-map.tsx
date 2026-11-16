@@ -28,30 +28,62 @@ export function pieceBox(piece: SeatPiece): SeatBox {
   return { x: piece.x, y: piece.y, w: piece.w, h: piece.h };
 }
 
+function shownText(piece: SeatPiece) {
+  if (piece.kind === "arrow" || piece.kind === "text") return piece.text.trim();
+  if (piece.seat) {
+    const text = piece.text.trim();
+    const numbered = text.match(/^(?:chair|seat)\s+(\S+)$/i);
+    return (numbered ? numbered[1] : text) || piece.table.trim();
+  }
+  return (piece.table || piece.text).trim();
+}
+
 function drawnLine(piece: SeatPiece): { text: string; size: number } | null {
   if (piece.kind === "arrow") return piece.text ? { text: piece.text, size: 22 } : null;
   if (piece.kind === "text") return piece.text ? { text: piece.text, size: Math.max(20, Math.min(48, piece.h * 0.66)) } : null;
-  const text = piece.seat ? piece.text || piece.table : piece.table || piece.text;
+  const text = shownText(piece);
   if (!text) return null;
-  const innerW = piece.kind === "ellipse" ? piece.w * 0.66 : piece.w * 0.84;
-  const innerH = piece.h * 0.7;
-  const size = Math.min(42, innerH * 0.72, innerW / Math.max(1, text.length * 0.54));
-  if (size < 12) return null;
+  const innerW = (piece.kind === "ellipse" ? piece.w * 0.62 : piece.w * 0.8) - 6;
+  const innerH = piece.h * 0.62;
+  const size = Math.min(40, innerH, innerW / Math.max(1, text.length * 0.58));
+  if (size < 13) return null;
   return { text, size };
 }
 
-function chairBack(piece: SeatPiece) {
+function openSide(piece: SeatPiece, pieces: SeatPiece[]) {
+  const box = pieceBox(piece);
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2;
+  const room = { up: box.y - 8, down: 692 - (box.y + box.h), left: box.x - 8, right: 992 - (box.x + box.w) };
+  for (const other of pieces) {
+    if (other.id === piece.id) continue;
+    const next = pieceBox(other);
+    const overlapX = Math.min(box.x + box.w, next.x + next.w) - Math.max(box.x, next.x);
+    const overlapY = Math.min(box.y + box.h, next.y + next.h) - Math.max(box.y, next.y);
+    if (overlapX > -12) {
+      if (next.y + next.h <= cy) room.up = Math.min(room.up, box.y - (next.y + next.h));
+      if (next.y >= cy) room.down = Math.min(room.down, next.y - (box.y + box.h));
+    }
+    if (overlapY > -12) {
+      if (next.x + next.w <= cx) room.left = Math.min(room.left, box.x - (next.x + next.w));
+      if (next.x >= cx) room.right = Math.min(room.right, next.x - (box.x + box.w));
+    }
+  }
+  return (Object.entries(room) as [keyof typeof room, number][]).sort((a, b) => b[1] - a[1])[0][0];
+}
+
+function chairCrest(piece: SeatPiece) {
   const cx = piece.x + piece.w / 2;
   const cy = piece.y + piece.h / 2;
-  const rx = Math.max(8, piece.w / 2 - 7);
-  const ry = Math.max(8, piece.h / 2 - 7);
+  const rx = piece.w / 2 + 7;
+  const ry = piece.h / 2 + 7;
   const point = (deg: number) => {
     const rad = (deg * Math.PI) / 180;
     return [cx + rx * Math.cos(rad), cy + ry * Math.sin(rad)];
   };
-  const [x1, y1] = point(-150);
-  const [x2, y2] = point(-30);
-  return `M ${x1} ${y1} A ${rx} ${ry} 0 0 0 ${x2} ${y2}`;
+  const [x1, y1] = point(206);
+  const [x2, y2] = point(334);
+  return `M ${x1} ${y1} A ${rx} ${ry} 0 0 1 ${x2} ${y2}`;
 }
 
 export function SeatMap({
@@ -93,6 +125,9 @@ export function SeatMap({
         <marker id="seat-arrowhead" markerWidth="16" markerHeight="16" refX="13" refY="8" orient="auto" markerUnits="userSpaceOnUse">
           <path d="M1,1 L15,8 L1,15 Z" fill="#2b221c" />
         </marker>
+        <marker id="seat-you-head" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M1,1 L13,7 L1,13 Z" fill="#8c6a3d" />
+        </marker>
       </defs>
       <rect className="seat-board" width="1000" height="700" fill="#f3eadc" onPointerDown={onBackgroundPointerDown} />
       {editable ? <rect width="1000" height="700" fill="url(#seat-grid)" pointerEvents="none" /> : null}
@@ -102,6 +137,7 @@ export function SeatMap({
         <Piece
           key={piece.id}
           piece={piece}
+          pieces={pieces}
           names={named.get(piece.id) ?? []}
           editable={editable}
           onPiecePointerDown={onPiecePointerDown}
@@ -114,11 +150,13 @@ export function SeatMap({
 
 function Piece({
   piece,
+  pieces,
   names,
   editable,
   onPiecePointerDown,
 }: {
   piece: SeatPiece;
+  pieces: SeatPiece[];
   names: string[];
   editable: boolean;
   onPiecePointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
@@ -153,16 +191,40 @@ function Piece({
           <line x1={piece.x} y1={piece.y} x2={piece.x + piece.w} y2={piece.y + piece.h} className="seat-arrow" markerEnd="url(#seat-arrowhead)" />
         </>
       ) : null}
-      {piece.seat && piece.kind === "ellipse" ? <path className="seat-back" d={chairBack(piece)} /> : null}
+      {piece.seat && piece.kind === "ellipse" ? <path className="seat-crest" d={chairCrest(piece)} /> : null}
       {piece.seat && piece.kind === "rect" ? (
-        <path className="seat-back" d={`M ${piece.x + 16} ${piece.y + 18} H ${piece.x + piece.w - 16}`} />
+        <rect className="seat-crest-bar" x={piece.x + 10} y={piece.y - 16} width={Math.max(12, piece.w - 20)} height={10} rx="5" />
       ) : null}
       {line ? (
         <text className="seat-label" x={cx} y={cy} textAnchor="middle" fontSize={line.size} fontWeight={600} fill="#2b221c">
           {line.text}
         </text>
       ) : null}
+      {hot && !editable ? <YouArrow piece={piece} side={openSide(piece, pieces)} /> : null}
       <title>{who ? `${who}. ${seatPlace(piece)}` : seatPlace(piece)}</title>
+    </g>
+  );
+}
+
+function YouArrow({ piece, side }: { piece: SeatPiece; side: "up" | "down" | "left" | "right" }) {
+  const box = pieceBox(piece);
+  const cx = box.x + box.w / 2;
+  const cy = box.y + box.h / 2;
+  const gap = 16;
+  const len = 36;
+  const tipX = side === "left" ? box.x - gap : side === "right" ? box.x + box.w + gap : cx;
+  const tipY = side === "up" ? box.y - gap : side === "down" ? box.y + box.h + gap : cy;
+  const tailX = side === "left" ? tipX - len : side === "right" ? tipX + len : cx;
+  const tailY = side === "up" ? tipY - len : side === "down" ? tipY + len : cy;
+  const textX = side === "left" ? tailX - 8 : side === "right" ? tailX + 8 : cx;
+  const textY = side === "up" ? tailY - 8 : side === "down" ? tailY + 24 : cy + 8;
+  const anchor = side === "left" ? "end" : side === "right" ? "start" : "middle";
+  return (
+    <g className="seat-you" pointerEvents="none">
+      <text className="seat-you-label" x={textX} y={textY} textAnchor={anchor}>
+        You
+      </text>
+      <line x1={tailX} y1={tailY} x2={tipX} y2={tipY} className="seat-you-arrow" markerEnd="url(#seat-you-head)" />
     </g>
   );
 }
