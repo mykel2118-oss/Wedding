@@ -23,18 +23,21 @@ export async function POST(req: Request) {
   if (!rateLimit(`rsvp:${guest.id}`, 30)) {
     return NextResponse.json({ error: "Too many replies just now. Wait a little, then try again." }, { status: 429 });
   }
-  const allowed = guest.party.length;
-  if (!Array.isArray(body.names) || body.names.length < 1 || body.names.length > allowed) {
+  const party = guest.party;
+  if (!Array.isArray(body.names) || body.names.length < 1 || body.names.length > party.length) {
     return NextResponse.json({ error: "This invitation is only for the people named on it." }, { status: 400 });
   }
 
+  const used = party.map(() => false);
   const names: string[] = [];
   for (const item of body.names) {
     const name = cleanName(item);
-    if (!name) {
-      return NextResponse.json({ error: "Each person needs their own name." }, { status: 400 });
+    const index = name ? party.findIndex((person, at) => !used[at] && person.trim().toLowerCase() === name.toLowerCase()) : -1;
+    if (index < 0) {
+      return NextResponse.json({ error: "This invitation is only for the people named on it." }, { status: 400 });
     }
-    names.push(name);
+    used[index] = true;
+    names.push(party[index]);
   }
 
   await ensureInvite(guest.id, guest.name);

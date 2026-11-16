@@ -222,6 +222,23 @@ html.reduce-motion .intro-mark { animation: none; }
   line-height: 1.45;
 }
 .rsvp-deadline { margin: -0.25rem 0 0.9rem; }
+.rsvp-people {
+  list-style: none;
+  margin: 0.85rem 0 1rem;
+  padding: 0;
+  display: grid;
+}
+.rsvp-people li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.1rem;
+  border-bottom: 1px solid var(--line);
+}
+.rsvp-people li span { font-size: 1.35rem; line-height: 1.3; }
+.rsvp-people li.is-aside span { opacity: 0.45; }
+.rsvp-people .text-button { flex: none; }
 .rsvp-done { margin: 0 0 0.9rem; }
 .rsvp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem 1rem; }
 .seat-lookup { display: grid; gap: 0.55rem; margin: 0.2rem 0 0.95rem; max-width: 28rem; }
