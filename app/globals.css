@@ -935,6 +935,8 @@ input:focus { outline: none; border-bottom-color: var(--espresso); }
 .envelope-photo { display: none; }
 
 .guest-album { margin: 1.2rem auto 2.4rem; }
+.guest-camera-link { margin: 0.8rem 0 0; }
+.guest-camera-link .button { display: inline-flex; }
 .guest-album h1 {
   margin: 0.2rem 0 0.35rem;
   font-weight: 500;
@@ -1002,7 +1004,7 @@ input:focus { outline: none; border-bottom-color: var(--espresso); }
 .camera-stage {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 120;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto auto auto auto;
   background: #140f0c;
