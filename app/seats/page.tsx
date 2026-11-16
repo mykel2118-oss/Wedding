@@ -43,7 +43,13 @@ export default async function SeatsPage({ searchParams }: { searchParams: Promis
     if (!rateLimit("seat-name", 120, 60_000)) {
       lookup = "wait";
     } else {
-      const matches = groupsForName(seatGroups(await listInvites()), query);
+      let invites: Awaited<ReturnType<typeof listInvites>> = [];
+      try {
+        invites = await listInvites();
+      } catch {
+        invites = [];
+      }
+      const matches = groupsForName(seatGroups(invites), query);
       if (matches.length === 1) {
         lookup = "found";
         mine = seatsFor(plan, matches[0].inviteId);

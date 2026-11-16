@@ -27,6 +27,7 @@ const nextConfig: NextConfig = {
     "/api/invites/[id]": ["./data/**/*"],
     "/api/rsvp": ["./data/**/*"],
     "/guests": ["./data/**/*"],
+    "/camera": ["./data/**/*"],
     "/seats": ["./data/**/*"],
     "/api/seating": ["./data/**/*"],
   },
