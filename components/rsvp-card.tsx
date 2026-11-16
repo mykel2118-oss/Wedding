@@ -2,17 +2,22 @@
 
 import { useState } from "react";
 
-function partyCount(text: string): number | null {
-  if (!/^[1-9]\d*$/.test(text)) return null;
-  const count = Number(text);
-  if (!Number.isInteger(count) || count < 1) return null;
-  return count;
-}
-
 function listNames(names: string[]) {
   if (names.length <= 1) return names[0] ?? "";
   if (names.length === 2) return `${names[0]} and ${names[1]}`;
   return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+}
+
+function invitedPeople(partyNames: string[] | null, name: string | null) {
+  return (partyNames?.length ? partyNames : name ? [name] : []).slice(0, 2);
+}
+
+function replyNames(invited: string[], savedNames: string[] | null) {
+  const saved = savedNames?.length ? savedNames.slice(0, invited.length) : [];
+  if (!saved.length) return invited.slice();
+  const seed = saved.slice();
+  while (seed.length < invited.length) seed.push(invited[seed.length] ?? "");
+  return seed;
 }
 
 export function RsvpCard({
@@ -27,45 +32,22 @@ export function RsvpCard({
   savedNames: string[] | null;
 }) {
   const replied = Boolean(savedNames && savedNames.length);
-  const starting = Math.max((replied ? savedNames : partyNames)?.length ?? 1, 1);
-  const [quantityText, setQuantityText] = useState(String(starting));
-  const [people, setPeople] = useState<string[]>(() => {
-    const seed = ((replied ? savedNames : partyNames) || [name ?? ""]).slice();
-    while (seed.length < starting) seed.push("");
-    if (!seed[0] && name) seed[0] = name;
-    return seed;
-  });
+  const invited = invitedPeople(partyNames, name);
+  const saved = replied ? (savedNames ?? []).slice(0, invited.length) : [];
+  const seed = replyNames(invited, replied ? saved : null);
+  const [people, setPeople] = useState<string[]>(seed);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
   const [done, setDone] = useState<{ names: string[]; headcount: number } | null>(
-    replied && savedNames ? { names: savedNames, headcount: savedNames.length } : null,
+    saved.length ? { names: saved, headcount: saved.length } : null,
   );
-  const quantity = partyCount(quantityText);
-
-  function onQuantity(raw: string) {
-    const next = raw.replace(/[^\d]/g, "");
-    setQuantityText(next);
-    setError("");
-    const count = partyCount(next);
-    if (count === null) return;
-    setPeople((current) => {
-      const copy = current.slice(0, count);
-      while (copy.length < count) copy.push("");
-      if (name && !copy[0]) copy[0] = name;
-      return copy;
-    });
-  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!token || !name) return;
-    if (quantity === null) {
-      setError("Enter how many people are coming.");
-      return;
-    }
-    const names = people.slice(0, quantity).map((item) => item.trim());
-    if (names.length !== quantity || names.some((item) => !item)) {
+    const names = people.map((item) => item.trim());
+    if (!names.length || names.some((item) => !item)) {
       setError("Each person needs their own name.");
       return;
     }
@@ -84,7 +66,6 @@ export function RsvpCard({
       }
       setDone({ names: data.names, headcount: data.headcount });
       setPeople(data.names);
-      setQuantityText(String(data.headcount));
       setEditing(false);
     } catch {
       setError("Could not save that reply.");
@@ -97,6 +78,7 @@ export function RsvpCard({
     <section className="rsvp-card" id="rsvp" aria-labelledby="rsvp-title">
       <p className="eyebrow">RSVP</p>
       <h2 id="rsvp-title">Will you be there?</h2>
+      <p className="rsvp-note rsvp-deadline">Please reply before March 6. The last day to RSVP is March 6, 2027.</p>
       {done && !editing ? (
         <div className="rsvp-saved">
           <p className="rsvp-done">
@@ -111,33 +93,16 @@ export function RsvpCard({
           {token && name ? (
             <>
               <p className="invite-name">{name}</p>
-              <label className="quantity-field">
-                <span>How many people, including you?</span>
-                <input
-                  type="text"
-                  name="quantity"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  enterKeyHint="done"
-                  value={quantityText}
-                  onChange={(event) => onQuantity(event.target.value)}
-                  required
-                />
-              </label>
-              {quantity !== null
-                ? people.slice(0, quantity).map((person, index) => (
+              <p className="rsvp-note">This reply is only for the people named on your invitation.</p>
+              {people.map((person, index) => (
                 <label key={index}>
-                  <span>{index === 0 ? "Your name" : `Person ${index + 1}`}</span>
+                  <span>{people.length === 1 ? "Your name" : index === 0 ? "Name" : "Second name"}</span>
                   <input
                     type="text"
-                    name={index === 0 ? "guest-name" : `guest-name-${index + 1}`}
+                    name={index === 0 ? "guest-name" : "guest-name-2"}
                     value={person}
                     maxLength={60}
                     required
-                    placeholder="Their name"
                     onChange={(event) => {
                       const next = people.slice();
                       next[index] = event.target.value;
@@ -145,8 +110,7 @@ export function RsvpCard({
                     }}
                   />
                 </label>
-              ))
-                : null}
+              ))}
               <div className="rsvp-actions">
                 <button className="button" type="submit" disabled={busy}>
                   {busy ? "Saving" : done ? "Save changes" : "Send reply"}
@@ -159,7 +123,6 @@ export function RsvpCard({
                       setEditing(false);
                       setError("");
                       setPeople(done.names);
-                      setQuantityText(String(done.headcount));
                     }}
                   >
                     Cancel
