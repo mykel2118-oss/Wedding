@@ -2,17 +2,26 @@
 
 import { useState } from "react";
 
-function partyCount(text: string): number | null {
-  if (!/^[1-9]\d*$/.test(text)) return null;
-  const count = Number(text);
-  if (!Number.isInteger(count) || count < 1) return null;
-  return count;
-}
-
 function listNames(names: string[]) {
   if (names.length <= 1) return names[0] ?? "";
   if (names.length === 2) return `${names[0]} and ${names[1]}`;
   return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+}
+
+function invitedPeople(partyNames: string[] | null, name: string | null) {
+  return (partyNames?.length ? partyNames : name ? [name] : []).slice(0, 2);
+}
+
+function comingSeed(invited: string[], savedNames: string[] | null, replied: boolean) {
+  if (!replied || !savedNames?.length) return invited.map(() => true);
+  const pool = savedNames.map((item) => item.trim().toLowerCase());
+  const chosen = invited.map((person) => {
+    const at = pool.indexOf(person.trim().toLowerCase());
+    if (at < 0) return false;
+    pool.splice(at, 1);
+    return true;
+  });
+  return chosen.some(Boolean) ? chosen : invited.map(() => true);
 }
 
 export function RsvpCard({
@@ -27,46 +36,28 @@ export function RsvpCard({
   savedNames: string[] | null;
 }) {
   const replied = Boolean(savedNames && savedNames.length);
-  const starting = Math.max((replied ? savedNames : partyNames)?.length ?? 1, 1);
-  const [quantityText, setQuantityText] = useState(String(starting));
-  const [people, setPeople] = useState<string[]>(() => {
-    const seed = ((replied ? savedNames : partyNames) || [name ?? ""]).slice();
-    while (seed.length < starting) seed.push("");
-    if (!seed[0] && name) seed[0] = name;
-    return seed;
-  });
+  const invited = invitedPeople(partyNames, name);
+  const saved = replied
+    ? invited.filter((person) => (savedNames ?? []).some((item) => item.trim().toLowerCase() === person.trim().toLowerCase()))
+    : [];
+  const [coming, setComing] = useState<boolean[]>(() => comingSeed(invited, savedNames, replied));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
   const [done, setDone] = useState<{ names: string[]; headcount: number } | null>(
-    replied && savedNames ? { names: savedNames, headcount: savedNames.length } : null,
+    saved.length ? { names: saved, headcount: saved.length } : null,
   );
-  const quantity = partyCount(quantityText);
 
-  function onQuantity(raw: string) {
-    const next = raw.replace(/[^\d]/g, "");
-    setQuantityText(next);
-    setError("");
-    const count = partyCount(next);
-    if (count === null) return;
-    setPeople((current) => {
-      const copy = current.slice(0, count);
-      while (copy.length < count) copy.push("");
-      if (name && !copy[0]) copy[0] = name;
-      return copy;
-    });
+  function chosenNames(flags = coming) {
+    return invited.filter((_, index) => flags[index]);
   }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!token || !name) return;
-    if (quantity === null) {
-      setError("Enter how many people are coming.");
-      return;
-    }
-    const names = people.slice(0, quantity).map((item) => item.trim());
-    if (names.length !== quantity || names.some((item) => !item)) {
-      setError("Each person needs their own name.");
+    const names = chosenNames();
+    if (!names.length) {
+      setError("Add back at least one person from your invitation.");
       return;
     }
     setBusy(true);
@@ -83,8 +74,7 @@ export function RsvpCard({
         return;
       }
       setDone({ names: data.names, headcount: data.headcount });
-      setPeople(data.names);
-      setQuantityText(String(data.headcount));
+      setComing(comingSeed(invited, data.names, true));
       setEditing(false);
     } catch {
       setError("Could not save that reply.");
@@ -97,6 +87,7 @@ export function RsvpCard({
     <section className="rsvp-card" id="rsvp" aria-labelledby="rsvp-title">
       <p className="eyebrow">RSVP</p>
       <h2 id="rsvp-title">Will you be there?</h2>
+      <p className="rsvp-note rsvp-deadline">Please reply before March 6. The last day to RSVP is March 6, 2027.</p>
       {done && !editing ? (
         <div className="rsvp-saved">
           <p className="rsvp-done">
@@ -111,42 +102,26 @@ export function RsvpCard({
           {token && name ? (
             <>
               <p className="invite-name">{name}</p>
-              <label className="quantity-field">
-                <span>How many people, including you?</span>
-                <input
-                  type="text"
-                  name="quantity"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  enterKeyHint="done"
-                  value={quantityText}
-                  onChange={(event) => onQuantity(event.target.value)}
-                  required
-                />
-              </label>
-              {quantity !== null
-                ? people.slice(0, quantity).map((person, index) => (
-                <label key={index}>
-                  <span>{index === 0 ? "Your name" : `Person ${index + 1}`}</span>
-                  <input
-                    type="text"
-                    name={index === 0 ? "guest-name" : `guest-name-${index + 1}`}
-                    value={person}
-                    maxLength={60}
-                    required
-                    placeholder="Their name"
-                    onChange={(event) => {
-                      const next = people.slice();
-                      next[index] = event.target.value;
-                      setPeople(next);
-                    }}
-                  />
-                </label>
-              ))
-                : null}
+              <p className="rsvp-note">Remove a name if that person is not coming. You can add that name back.</p>
+              <ul className="rsvp-people">
+                {invited.map((person, index) => (
+                  <li key={`${person}-${index}`} className={coming[index] ? undefined : "is-aside"}>
+                    <span>{person}</span>
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => {
+                        const next = coming.slice();
+                        next[index] = !next[index];
+                        setComing(next);
+                        setError("");
+                      }}
+                    >
+                      {coming[index] ? "Remove" : "Add back"}
+                    </button>
+                  </li>
+                ))}
+              </ul>
               <div className="rsvp-actions">
                 <button className="button" type="submit" disabled={busy}>
                   {busy ? "Saving" : done ? "Save changes" : "Send reply"}
@@ -158,8 +133,7 @@ export function RsvpCard({
                     onClick={() => {
                       setEditing(false);
                       setError("");
-                      setPeople(done.names);
-                      setQuantityText(String(done.headcount));
+                      setComing(comingSeed(invited, done.names, true));
                     }}
                   >
                     Cancel
