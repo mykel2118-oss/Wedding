@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BannerPicture } from "@/components/banner-picture";
 import { Countdown } from "@/components/countdown";
 import { Gallery } from "@/components/gallery";
@@ -7,7 +8,9 @@ import { RsvpCard } from "@/components/rsvp-card";
 import { SaveTheDate } from "@/components/save-the-date";
 import { ensureInvite, getHome, getInvite, listMedia } from "@/lib/db";
 import { readGuest } from "@/lib/guest-token";
+import { readLive } from "@/lib/live";
 import { MARK, WEDDING_LABEL, WEDDING_PLACE, WEDDING_WEEKDAY } from "@/lib/mark";
+import { seatsFor } from "@/lib/seating";
 import type { MediaItem } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +65,18 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const guest = parsed ? await getInvite(parsed.id) : null;
   const items = await listMedia();
   const home = await getHome();
+  let seatLines: { name: string; place: string; pieceId: string }[] = [];
+  if (parsed) {
+    try {
+      seatLines = seatsFor((await readLive()).seating, parsed.id).map((row) => ({
+        name: row.name,
+        place: row.place,
+        pieceId: row.piece.id,
+      }));
+    } catch {
+      seatLines = [];
+    }
+  }
   const byId = new Map(items.map((item) => [item.id, item]));
   const bannerMedia = home.banner ? byId.get(home.banner) ?? null : null;
   const hero: MediaItem = bannerMedia ?? HOME_FIRST;
@@ -88,6 +103,26 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             </span>
             <span>{WEDDING_PLACE}</span>
           </p>
+          <section className="seat-card">
+            <h2>Where you will sit</h2>
+            {seatLines.length ? (
+              <ul className="seat-lines">
+                {seatLines.map((line) => (
+                  <li key={`${line.pieceId}-${line.name}`}>
+                    <strong>{line.name}</strong>
+                    <span>{line.place}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : parsed ? (
+              <p className="seat-card-note">Your seat will appear here once it is chosen.</p>
+            ) : (
+              <p className="seat-card-note">Open the link from your invitation to see your table and chair.</p>
+            )}
+            <Link className="button" href={parsed ? `/seats?guest=${encodeURIComponent(token)}` : "/seats"}>
+              See the map
+            </Link>
+          </section>
           <RsvpCard
             token={parsed ? token : null}
             name={parsed?.name ?? null}

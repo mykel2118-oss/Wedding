@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import https from "node:https";
 import { storyBanner, storyFeatures } from "./features";
+import { asSeating, type SeatingPlan } from "./seating";
 import type { HomeDetails, MediaKind } from "./types";
 
 /** Shared record every live visit reads and writes. Not the temporary Vercel disk. */
@@ -60,6 +61,8 @@ export type LiveState = {
   /** Photographs kel removed. The original set must not put these back. */
   removed: string[];
   home: HomeDetails;
+  /** The room drawing and which guest sits in which chair. */
+  seating: SeatingPlan;
 };
 
 function asUpload(value: unknown): LiveUpload | null {
@@ -178,6 +181,7 @@ function asState(value: unknown): LiveState | null {
     guestPhotos: asGuestPhotos(row.guestPhotos),
     removed: removedIds(row.removed),
     home: asHome(row.home),
+    seating: asSeating(row.seating),
   };
 }
 
@@ -249,7 +253,17 @@ function requestText(url: string, method: string, body?: string): Promise<{ stat
   });
 }
 
-export async function readLive(): Promise<LiveState> {
+/** One shared read serves a room of guests. A save always reads again. */
+const LIVE_MS = 3000;
+let cached: { at: number; revision: number; state: LiveState } | null = null;
+let flight: Promise<LiveState> | null = null;
+
+function keep(state: LiveState) {
+  if (cached && state.revision < cached.revision) return;
+  cached = { at: Date.now(), revision: state.revision, state: structuredClone(state) };
+}
+
+async function fetchLive(): Promise<LiveState> {
   let last = "";
   let best: LiveState | null = null;
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -275,6 +289,21 @@ export async function readLive(): Promise<LiveState> {
   throw new Error(last || "Could not read the shared record");
 }
 
+export async function readLive(): Promise<LiveState> {
+  if (cached && Date.now() - cached.at < LIVE_MS) return structuredClone(cached.state);
+  if (!flight) {
+    flight = fetchLive()
+      .then((state) => {
+        keep(state);
+        return cached?.state ?? state;
+      })
+      .finally(() => {
+        flight = null;
+      });
+  }
+  return structuredClone(await flight);
+}
+
 function sameRecord(a: LiveState, b: LiveState): boolean {
   return (
     JSON.stringify(a.media) === JSON.stringify(b.media) &&
@@ -283,17 +312,20 @@ function sameRecord(a: LiveState, b: LiveState): boolean {
     JSON.stringify(a.uploads) === JSON.stringify(b.uploads) &&
     JSON.stringify(a.guestPhotos) === JSON.stringify(b.guestPhotos) &&
     JSON.stringify(removedIds(a.removed)) === JSON.stringify(removedIds(b.removed)) &&
-    JSON.stringify(a.home) === JSON.stringify(b.home)
+    JSON.stringify(a.home) === JSON.stringify(b.home) &&
+    JSON.stringify(a.seating) === JSON.stringify(b.seating)
   );
 }
 
 export async function changeLive(edit: (state: LiveState) => void, options?: { forget?: string[] }): Promise<LiveState> {
   const forget = new Set(options?.forget ?? []);
   for (const id of forget) remembered.delete(id);
-  let base = await readLive();
+  let base = await fetchLive();
+  keep(base);
   for (let attempt = 0; attempt < 8; attempt++) {
     if (base.revision < highWater) {
-      base = await readLive();
+      base = await fetchLive();
+      keep(base);
       continue;
     }
     const next = structuredClone(base);
@@ -312,12 +344,14 @@ export async function changeLive(edit: (state: LiveState) => void, options?: { f
     next.revision = (base.revision || 0) + 1;
     const res = await requestText(BIN_URL, "PUT", JSON.stringify(next));
     if (res.status < 200 || res.status >= 300) throw new Error("Could not save the shared record");
-    const seen = await readLive();
+    const seen = await fetchLive();
+    keep(seen);
     if (seen.revision === next.revision && sameRecord(seen, next) && next.media.every((item) => seen.media.some((row) => row.id === item.id))) {
       noteState(seen);
       return seen;
     }
-    base = seen.revision >= base.revision ? seen : await readLive();
+    base = seen.revision >= base.revision ? seen : await fetchLive();
+    keep(base);
   }
   throw new Error("Could not save the shared record");
 }
