@@ -226,6 +226,34 @@ function noteState(state: LiveState) {
   }
 }
 
+/** The storage host appends an HTML page after the record. Read only the JSON object. */
+function parseRecord(text: string): unknown {
+  const start = text.indexOf("{");
+  if (start < 0) throw new Error("Could not read the shared record");
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (ch === "\\") escape = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return JSON.parse(text.slice(start, i + 1));
+    }
+  }
+  throw new Error("Could not read the shared record");
+}
+
 function requestText(url: string, method: string, body?: string): Promise<{ status: number; text: string }> {
   return new Promise((resolve, reject) => {
     const req = https.request(
@@ -271,7 +299,7 @@ async function fetchLive(): Promise<LiveState> {
       const res = await requestText(`${BIN_URL}?t=${Date.now()}-${attempt}-${Math.random()}`, "GET");
       last = res.text;
       if (res.status < 200 || res.status >= 300) continue;
-      const state = asState(JSON.parse(last));
+      const state = asState(parseRecord(res.text));
       if (!state) continue;
       if (!best || state.revision >= best.revision) best = state;
       if (state.revision >= highWater) {
