@@ -7,7 +7,7 @@ import { RsvpCard } from "@/components/rsvp-card";
 import { SaveTheDate } from "@/components/save-the-date";
 import { ensureInvite, getHome, getInvite, listMedia } from "@/lib/db";
 import { readGuest } from "@/lib/guest-token";
-import { MARK, WEDDING_PLACE } from "@/lib/mark";
+import { MARK, WEDDING_LABEL, WEDDING_PLACE, WEDDING_WEEKDAY } from "@/lib/mark";
 import type { MediaItem } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -78,11 +78,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </h1>
           <Countdown />
           <p className="when">
-            <span>Saturday</span>
+            <span>{WEDDING_WEEKDAY}</span>
             <span className="when-dot" aria-hidden="true">
               ·
             </span>
-            <span>10 April 2027</span>
+            <span>{WEDDING_LABEL}</span>
             <span className="when-dot" aria-hidden="true">
               ·
             </span>
@@ -240,7 +240,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
       <footer className="site-footer">
         <p className="brand-footer">{MARK}</p>
-        <p>10 April 2027 · {WEDDING_PLACE}</p>
+        <p>{WEDDING_LABEL} · {WEDDING_PLACE}</p>
       </footer>
     </main>
   );

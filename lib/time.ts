@@ -1,8 +1,8 @@
 export const WEDDING_TIME_ZONE = "America/Los_Angeles";
 
-/** Start of 10 April 2027 in America/Los_Angeles. */
+/** Start of 9 April 2027 in America/Los_Angeles. */
 export function weddingTargetMs(now = Date.now()): number {
-  return zonedTimeToUtc(2027, 4, 10, 0, 0, 0, WEDDING_TIME_ZONE, now);
+  return zonedTimeToUtc(2027, 4, 9, 0, 0, 0, WEDDING_TIME_ZONE, now);
 }
 
 export type CountdownParts = {
