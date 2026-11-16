@@ -7,6 +7,13 @@ const NAME_KEY = "yk-camera-name";
 const MAX_EDGE = 1600;
 
 type Facing = "environment" | "user";
+type Look = "warm" | "vintage" | "normal";
+
+const LOOKS: { id: Look; label: string; filter: string }[] = [
+  { id: "warm", label: "Warm", filter: "sepia(0.25) saturate(1.35) brightness(1.06) contrast(1.04)" },
+  { id: "vintage", label: "Vintage", filter: "sepia(0.55) contrast(0.88) brightness(1.08) saturate(0.7)" },
+  { id: "normal", label: "Normal", filter: "none" },
+];
 
 async function openCamera(facing: Facing) {
   const tries: MediaStreamConstraints[] = [
@@ -39,13 +46,20 @@ async function shrinkCanvas(canvas: HTMLCanvasElement) {
   return blob;
 }
 
-function drawCover(source: CanvasImageSource, sourceWidth: number, sourceHeight: number, mirror: boolean) {
+function drawCover(
+  source: CanvasImageSource,
+  sourceWidth: number,
+  sourceHeight: number,
+  mirror: boolean,
+  filter: string,
+) {
   const scale = Math.min(1, MAX_EDGE / Math.max(sourceWidth, sourceHeight));
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(sourceWidth * scale));
   canvas.height = Math.max(1, Math.round(sourceHeight * scale));
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
+  ctx.filter = filter;
   if (mirror) {
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
@@ -62,10 +76,11 @@ export function GuestCamera() {
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [look, setLook] = useState<Look>("normal");
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
   const ticket = useRef(0);
+  const filter = LOOKS.find((item) => item.id === look)?.filter ?? "none";
 
   useEffect(() => {
     const root = document.documentElement;
@@ -114,8 +129,7 @@ export function GuestCamera() {
     sessionStorage.setItem(NAME_KEY, clean);
     sessionStorage.setItem("yk-intro:home", "1");
     void openFacing(facing).catch(() => {
-      setLive(true);
-      setError("The camera needs permission. Allow it, or choose a photograph.");
+      setError("The camera needs permission. Allow it, then try again.");
     });
   }
 
@@ -136,7 +150,7 @@ export function GuestCamera() {
     setBusy(true);
     setError("");
     try {
-      const canvas = drawCover(video, video.videoWidth, video.videoHeight, facing === "user");
+      const canvas = drawCover(video, video.videoWidth, video.videoHeight, facing === "user", filter);
       const blob = canvas ? await shrinkCanvas(canvas) : null;
       if (!blob) throw new Error("Could not take that photograph.");
       await sendBlob(blob);
@@ -144,25 +158,6 @@ export function GuestCamera() {
       setError(err instanceof Error ? err.message : "Could not add that photograph.");
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function fromFile(file: File | null) {
-    if (!file) return;
-    setBusy(true);
-    setError("");
-    try {
-      const bitmap = await createImageBitmap(file);
-      const canvas = drawCover(bitmap, bitmap.width, bitmap.height, false);
-      bitmap.close();
-      const blob = canvas ? await shrinkCanvas(canvas) : null;
-      if (!blob) throw new Error("Use a JPEG photograph.");
-      await sendBlob(blob);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Use a JPEG photograph.");
-    } finally {
-      setBusy(false);
-      if (fileRef.current) fileRef.current.value = "";
     }
   }
 
@@ -217,6 +212,7 @@ export function GuestCamera() {
         <video
           ref={videoRef}
           className={facing === "user" ? "is-mirror" : ""}
+          style={{ filter }}
           autoPlay
           muted
           playsInline
@@ -224,10 +220,21 @@ export function GuestCamera() {
         />
         {saved ? <p className="camera-saved">Saved</p> : null}
       </div>
+      <div className="camera-filters" role="group" aria-label="Photograph look">
+        {LOOKS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            aria-pressed={look === item.id}
+            onClick={() => setLook(item.id)}
+            disabled={busy}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
       <div className="camera-bar">
-        <button type="button" className="camera-side" onClick={() => fileRef.current?.click()} disabled={busy}>
-          Choose
-        </button>
+        <span aria-hidden="true" />
         <button type="button" className="camera-shutter" onClick={() => void shoot()} disabled={busy || !ready} aria-label="Take a photograph" />
         <button
           type="button"
@@ -248,13 +255,6 @@ export function GuestCamera() {
           {error}
         </p>
       ) : null}
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={(event) => void fromFile(event.target.files?.[0] ?? null)}
-      />
     </div>
   );
 }

@@ -97,7 +97,8 @@ export function GuestDesk({ initial }: { initial: GuestPhoto[] }) {
       <h2>Guest photographs</h2>
       <p>
         Print this code for the wedding. A guest scans it, the camera opens in the browser, and they can use the back
-        camera or the front camera. The photograph lands on Guest photos, with their name underneath.
+        camera or the front camera. Warm, Vintage, and Normal are on the camera. The photograph lands on Guest photos,
+        with their name underneath.
       </p>
       {note ? <p className="form-note">{note}</p> : null}
       {error ? (
